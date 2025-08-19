@@ -3,7 +3,6 @@ using matcha.Modelo;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
-
 namespace matcha.Controllers
 {
     [ApiController]
