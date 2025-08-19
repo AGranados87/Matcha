@@ -5,46 +5,58 @@
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient;
 
-
 <PageTitle>Listado de Usuarios</PageTitle>
 
-<h1>Usuarios</h1>
+<header class="d-flex align-items-center p-3 shadow-sm" style="margin: 0; background-color: white;">
+    <span class="fas fa-users fa-2x text-success me-3"></span>
+    <h1 class="m-0">Clientes</h1>
+</header>
 
-@if (usuarios == null)
-{
-    <p><em>Cargando...</em></p>
-}
-else if (!usuarios.Any())
-{
-    <p>No hay usuarios registrados.</p>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Nombre</th>
-                <th>Email</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var u in usuarios)
-            {
-                <tr>
-                    <td>@u.Id</td>
-                    <td>@u.Nombre</td>
-                    <td>@u.Email</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-<hr />
+    @if (usuarios == null)
+    {
+        <div class="alert alert-info">Cargando usuarios...</div>
+    }
+    else if (!usuarios.Any())
+    {
+        <div class="alert alert-warning">No hay usuarios registrados.</div>
+    }
+    else
+    {
+        <div class="container mt-5">
+        <div class="table-responsive shadow-sm rounded">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in usuarios)
+                    {
+                        <tr>
+                            <th scope="row">@u.Id</th>
+                            <td>@u.Nombre</td>
+                            <td>@u.Email</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-primary me-1">
+                                    <span class="fas fa-edit"></span>
+                                </button>
+                                <button class="btn btn-sm btn-danger">
+                                    <span class="fas fa-trash"></span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+      </div>
+    }
 
 @code {
-    private int currentCount = 0;
     private List<Usuario>? usuarios;
 
     protected override void OnInitialized()
@@ -53,6 +65,4 @@ else
         conn.Open();
         usuarios = conn.Query<Usuario>("SELECT Id, Nombre, Email FROM Usuarios").ToList();
     }
-
-   
 }
