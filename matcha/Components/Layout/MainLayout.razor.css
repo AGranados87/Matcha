@@ -1,11 +1,14 @@
-.page {
+﻿.page {
     position: relative;
     display: flex;
     flex-direction: column;
+    background: linear-gradient(to bottom, #FFF5E1, #FFFFFF); /* crema → blanco */
 }
 
 main {
     flex: 1;
+    background: linear-gradient(to bottom, #FFF5E1, #FFFFFF);
+    padding: 1rem;
 }
 
 .sidebar {
