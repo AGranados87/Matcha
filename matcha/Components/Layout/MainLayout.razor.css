@@ -13,12 +13,11 @@ main {
 
 .sidebar {
     background: linear-gradient(to bottom, #4F7942, #A8D5BA);
-    border-radius: 0 15px 15px 0; 
+    border-radius: 0; 
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
     padding: 1rem 0;
 }
 
-}
 
 .top-row {
     background-color: #f7f7f7;
