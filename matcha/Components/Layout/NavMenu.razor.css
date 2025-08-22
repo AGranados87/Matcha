@@ -106,14 +106,29 @@
 }
 
 .top-row {
-    background-color: #1c6b2c; /* verde oscuro */
-    min-height: 70px;          /* barra más alta */
-    padding: 0 1rem;           /* solo padding horizontal */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: transparent !important; /* fondo transparente */
+    box-shadow: none !important; /* elimina sombra */
+    min-height: 70px; /* conserva altura */
+    padding: 0 1rem;
     display: flex;
-    align-items: center;       /* alinea verticalmente */
+    align-items: center;
 }
 
 .navbar-brand {
     font-size: 2rem;         /* texto más grande */
-}}
+    font-family: 'Calisto MT';
+}
+
+.nav-scrollable .nav-link {
+    font-size: 1.25rem;       /* tamaño del texto más grande */
+    padding: 0.75rem 1rem;    /* más espacio vertical y horizontal */
+}
+
+.nav-scrollable .nav-link span.fas,
+.nav-scrollable .nav-link span.bi {
+    font-size: 1.5rem;        /* iconos más grandes */
+    width: 2rem;              /* asegura espacio para icono */
+    display: inline-block;
+    text-align: center;
+    margin-right: 0.75rem;
+}

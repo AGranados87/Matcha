@@ -1,8 +1,11 @@
-﻿.page {
+﻿
+
+.page {
     position: relative;
     display: flex;
     flex-direction: column;
     background: linear-gradient(to bottom, #FFF5E1, #FFFFFF); /* crema → blanco */
+    font-family: Aptos;
 }
 
 main {

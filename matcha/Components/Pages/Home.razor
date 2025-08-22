@@ -1,7 +1,139 @@
-﻿@page "/"
+﻿@page "/dashboard"
+<PageTitle>Dashboard Psicólogos</PageTitle>
 
-<PageTitle>Home</PageTitle>
+<div class="container-fluid py-4">
+    <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
+        <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
+        <h1 class="m-0">Dashboard Psicólogos</h1>
+    </header>
 
-<h1>Hello, world!</h1>
 
-Welcome to your new app.
+    <div class="row g-3 mb-4">
+        <!-- Tarjeta Pacientes activos -->
+        <div class="col-md-3">
+            <div class="card text-white bg-success shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-user-injured fa-2x me-3"></span>
+                        <div>
+                            <h5 class="card-title mb-0">Pacientes activos</h5>
+                            <h3 class="mb-0">24</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta Citas de hoy -->
+        <div class="col-md-3">
+            <div class="card text-white bg-primary shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-calendar-day fa-2x me-3"></span>
+                        <div>
+                            <h5 class="card-title mb-0">Citas hoy</h5>
+                            <h3 class="mb-0">5</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta Psicólogos disponibles -->
+        <div class="col-md-3">
+            <div class="card text-white bg-warning shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-user-md fa-2x me-3"></span>
+                        <div>
+                            <h5 class="card-title mb-0">Psicólogos disponibles</h5>
+                            <h3 class="mb-0">3</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta Pendientes -->
+        <div class="col-md-3">
+            <div class="card text-white bg-danger shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-exclamation-triangle fa-2x me-3"></span>
+                        <div>
+                            <h5 class="card-title mb-0">Citas Pendientes</h5>
+                            <h3 class="mb-0">2</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de próximas citas -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><span class="fas fa-calendar-alt me-2"></span>Próximas citas</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Psicólogo</th>
+                        <th>Fecha / Hora</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Juan Pérez</td>
+                        <td>Dra. López</td>
+                        <td>22/08/2025 10:00</td>
+                        <td>Individual</td>
+                    </tr>
+                    <tr>
+                        <td>María Sánchez</td>
+                        <td>Dr. Ruiz</td>
+                        <td>22/08/2025 11:00</td>
+                        <td>Grupo</td>
+                    </tr>
+                    <tr>
+                        <td>Carlos Fernández</td>
+                        <td>Dra. López</td>
+                        <td>22/08/2025 11:30</td>
+                        <td>Individual</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    #main-header {
+        position: fixed; /* pegado arriba */
+        top: 0;
+        left: 0; /* lo ajustaremos con margin-left */
+        width: calc(100% - var(--sidebar-width, 250px)); /* ancho dinámico según sidebar */
+        margin-left: var(--sidebar-width, 250px);
+        z-index: 1020;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: margin-left 0.3s, width 0.3s;
+   
+    }
+
+        #main-header h1 {
+            font-size: 2rem; /* más pequeño que el h1 normal */
+            margin: 0;
+        }
+
+        #main-header .fa-users {
+            font-size: 1.5rem; /* en lugar de fa-2x  */
+        }
+
+    .container-fluid.py-4 {
+        margin-top: 60px; /* separa del header fijo */
+    }
+</style>
