@@ -153,6 +153,13 @@ else
             paginaActual--;
     }
 
+    protected override void OnInitialized()
+    {
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        conn.Open();
+        usuarios = conn.Query<Usuario>("SELECT Id, Nombre, Email FROM Usuarios").ToList();
+    }
+
     private void Editar(Usuario u)
     {
         // Copia para editar sin afectar la lista original
@@ -181,7 +188,6 @@ else
                        WHERE Id = @Id",
                      new { usuarioEditando.Nombre, usuarioEditando.Email, Id = id });
 
-        // Actualizamos la lista local
         var u = usuarios.FirstOrDefault(x => x.Id == id);
         if (u != null)
         {
@@ -200,18 +206,9 @@ else
         conn.Open();
         conn.Execute("DELETE FROM Usuarios WHERE Id=@Id", new { Id = id });
 
-        // Actualizamos lista local
         usuarios.RemoveAll(u => u.Id == id);
 
-        // Ajustamos la página si eliminamos el último elemento de la última página
         if (paginaActual > TotalPaginas)
             paginaActual = TotalPaginas;
-    }
-
-    protected override void OnInitialized()
-    {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        conn.Open();
-        usuarios = conn.Query<Usuario>("SELECT Id, Nombre, Email FROM Usuarios").ToList();
     }
 }
