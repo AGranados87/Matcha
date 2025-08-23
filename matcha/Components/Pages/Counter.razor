@@ -40,15 +40,45 @@ else
                         {
                             <tr>
                                 <th scope="row">@u.Id</th>
-                                <td>@u.Nombre</td>
-                                <td>@u.Email</td>
+                                <td>
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <input class="form-control" @bind="usuarioEditando.Nombre" />
+                                    }
+                                    else
+                                    {
+                                        @u.Nombre
+                                    }
+                                </td>
+                                <td>
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <input class="form-control" @bind="usuarioEditando.Email" />
+                                    }
+                                    else
+                                    {
+                                        @u.Email
+                                    }
+                                </td>
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-success me-1">
-                                        <span class="fas fa-edit"></span>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger">
-                                        <span class="fas fa-trash"></span>
-                                    </button>
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <button class="btn btn-sm btn-success me-1" @onclick="() => Guardar(u.Id)">
+                                            <span class="fas fa-check"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" @onclick="CancelarEdicion">
+                                            <span class="fas fa-times"></span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => Editar(u)">
+                                            <span class="fas fa-edit"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(u.Id)">
+                                            <span class="fas fa-trash"></span>
+                                        </button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -73,31 +103,34 @@ else
         </div>
     </div>
 }
-    <style>
+
+<style>
     #main-header {
-        position: fixed; /* pegado arriba */
+        position: fixed;
         top: 0;
-        left: 0; /* lo ajustaremos con margin-left */
-        width: calc(100% - var(--sidebar-width, 250px)); /* ancho dinámico según sidebar */
+        left: 0;
+        width: calc(100% - var(--sidebar-width, 250px));
         margin-left: var(--sidebar-width, 250px);
         z-index: 1020;
         background-color: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: margin-left 0.3s, width 0.3s;}
+        transition: margin-left 0.3s, width 0.3s;
+    }
 
         #main-header h1 {
-            font-size: 2rem; /* más pequeño que el h1 normal */
+            font-size: 2rem;
             margin: 0;
         }
 
         #main-header .fa-users {
-            font-size: 1.5rem; /* en lugar de fa-2x  */
+            font-size: 1.5rem;
         }
-    </style>
-
+</style>
 
 @code {
     private List<Usuario>? usuarios;
+    private Usuario? usuarioEditando;
+
     private int paginaActual = 1;
     private int tamanioPagina = 15;
 
@@ -118,6 +151,61 @@ else
     {
         if (paginaActual > 1)
             paginaActual--;
+    }
+
+    private void Editar(Usuario u)
+    {
+        // Copia para editar sin afectar la lista original
+        usuarioEditando = new Usuario
+        {
+            Id = u.Id,
+            Nombre = u.Nombre,
+            Email = u.Email
+        };
+    }
+
+    private void CancelarEdicion()
+    {
+        usuarioEditando = null;
+    }
+
+    private void Guardar(int id)
+    {
+        if (usuarioEditando == null) return;
+
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        conn.Open();
+
+        conn.Execute(@"UPDATE Usuarios
+                       SET Nombre = @Nombre, Email = @Email
+                       WHERE Id = @Id",
+                     new { usuarioEditando.Nombre, usuarioEditando.Email, Id = id });
+
+        // Actualizamos la lista local
+        var u = usuarios.FirstOrDefault(x => x.Id == id);
+        if (u != null)
+        {
+            u.Nombre = usuarioEditando.Nombre;
+            u.Email = usuarioEditando.Email;
+        }
+
+        usuarioEditando = null;
+    }
+
+    private void Eliminar(int id)
+    {
+        if (!usuarios.Any(u => u.Id == id)) return;
+
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        conn.Open();
+        conn.Execute("DELETE FROM Usuarios WHERE Id=@Id", new { Id = id });
+
+        // Actualizamos lista local
+        usuarios.RemoveAll(u => u.Id == id);
+
+        // Ajustamos la página si eliminamos el último elemento de la última página
+        if (paginaActual > TotalPaginas)
+            paginaActual = TotalPaginas;
     }
 
     protected override void OnInitialized()
