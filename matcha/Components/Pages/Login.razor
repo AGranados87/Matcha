@@ -1,0 +1,67 @@
+﻿@page "/login"
+@using matcha.Components.Layout
+@layout LoginLayout
+
+<!-- Rectángulo grande de login CENTRADO -->
+<div class="login-card d-flex mx-auto my-auto"
+     style="width: 800px; height: 550px; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);">
+
+    <!-- Izquierda: Imagen + Texto (40%) -->
+    <div class="login-left p-4" style="background-color: #fffdeb; width: 40%; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <img src="Images/matchaverde.png" alt="Logo" style="max-width: 180px; margin-bottom: 1.5rem;">
+        <h3 style="color: #06561a; font-family: 'Aptos', sans-serif; font-weight: bold; font-size: 1.8rem;">Bienvenido a Matcha</h3>
+        <p style="color: #5b795b; font-family: 'Aptos', sans-serif; font-size: 1.1rem;">Tu plataforma de gestión eficiente</p>
+    </div>
+
+    <!-- Derecha: Formulario (60%) -->
+    <div class="login-right p-5" style="background-color: white; width: 60%; display:flex; flex-direction:column; justify-content:center;">
+        <h3 style="font-family: 'Aptos', sans-serif; color: #333; margin-bottom: 2rem; font-size: 1.8rem; text-align: center;">Iniciar Sesión</h3>
+
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="w-100">
+            <div class="mb-3">
+                <InputText @bind-Value="loginModel.UserName"
+                           placeholder="Usuario"
+                           class="form-control form-control-lg" />
+            </div>
+
+            <div class="mb-4">
+                <InputText @bind-Value="loginModel.Password"
+                           placeholder="Contraseña"
+                           type="password"
+                           class="form-control form-control-lg" />
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg w-100 py-2">
+                Entrar
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+<style>
+    body {
+        background-color: #f8f9fa; /* Fondo gris claro */
+        height: 100vh;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private LoginModel loginModel = new();
+
+    private void HandleLogin()
+    {
+        // Lógica de login
+    }
+
+    public class LoginModel
+    {
+        public string UserName { get; set; }
+        public string Password { get; set; }
+    }
+}
