@@ -1,4 +1,5 @@
 using matcha.Components;
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,7 +8,12 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddControllers();
 
-
+builder.Services.AddScoped(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var connectionString = config.GetConnectionString("SqlConnection");
+    return new SqlConnection(connectionString);
+});
 
 var app = builder.Build();
 

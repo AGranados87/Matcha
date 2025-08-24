@@ -1,0 +1,442 @@
+﻿@page "/usuarios"
+@rendermode InteractiveServer
+@inject IConfiguration Config
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@using Dapper
+@using matcha.Modelo
+@using Microsoft.Data.SqlClient
+
+<PageTitle>Listado de Usuarios</PageTitle>
+
+<header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
+    <span class="fas fa-users fa-2x text-success me-3"></span>
+    <h1 class="m-0">Clientes</h1>
+</header>
+
+<!-- Filtro y Botón Nuevo Usuario -->
+<div class="container" style="padding-top:60px; margin-bottom:10px;">
+    <div class="card shadow-sm mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between">
+
+            <!-- Contenedor del filtro -->
+            <div class="me-2" style="max-width:300px; width:100%;">
+                <label class="form-label d-flex align-items-center mb-1 fs-4">
+                    <span class="fas fa-leaf me-2 text-success"></span>
+                    Filtro de búsqueda
+                </label>
+                <input class="form-control"
+                       placeholder="Buscar usuario..."
+                       @bind="filtroBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <button class="btn btn-success" @onclick="AbrirModalNuevoUsuario">
+                <i class="fas fa-plus me-1"></i> Nuevo Paciente
+            </button>
+
+        </div>
+    </div>
+</div>
+
+
+@if (usuarios == null)
+{
+    <div class="alert alert-info" style="margin-top:90px;">Cargando usuarios...</div>
+}
+else if (!usuarios.Any())
+{
+    <div class="alert alert-warning" style="margin-top:90px;">No hay usuarios registrados.</div>
+}
+else
+{
+    <div id="page-content" style="padding-top:20px;">
+        <div class="container">
+            <div class="table-responsive shadow-sm rounded">
+                <table class="table table-hover align-middle">
+                    <thead class="table-success">
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Email</th>
+                            <th scope="col" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in UsuariosFiltrados)
+                        {
+                            <tr>
+                                <th scope="row">@u.Id</th>
+                                <td>
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <input class="form-control" @bind="usuarioEditando.Nombre" />
+                                    }
+                                    else
+                                    {
+                                        @u.Nombre
+                                    }
+                                </td>
+                                <td>
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <input class="form-control" @bind="usuarioEditando.Email" />
+                                    }
+                                    else
+                                    {
+                                        @u.Email
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (usuarioEditando?.Id == u.Id)
+                                    {
+                                        <button class="btn btn-sm btn-success me-1" @onclick="() => Guardar(u.Id)">
+                                            <span class="fas fa-check"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" @onclick="CancelarEdicion">
+                                            <span class="fas fa-times"></span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => Editar(u)">
+                                            <span class="fas fa-edit"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(u.Id)">
+                                            <span class="fas fa-trash"></span>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación moderna en verde con más espacio -->
+            <nav aria-label="Paginación usuarios">
+                <ul class="pagination justify-content-center mt-3">
+                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                        <button class="page-link rounded-pill border-0 bg-light text-dark shadow-sm mx-2"
+                                style="min-width: 100px;"
+                                @onclick="PaginaAnterior">
+                            <span class="me-1">&laquo;</span> Anterior
+                        </button>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link rounded-pill border-0 text-white shadow-sm"
+                              style="min-width: 60px; background-color: #28a745;">
+                            @paginaActual / @TotalPaginas
+                        </span>
+                    </li>
+                    <li class="page-item @(paginaActual == TotalPaginas ? "disabled" : "")">
+                        <button class="page-link rounded-pill border-0 bg-light text-dark shadow-sm mx-2"
+                                style="min-width: 100px;"
+                                @onclick="SiguientePagina">
+                            Siguiente <span class="ms-1">&raquo;</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+}
+
+<!-- Modal para Nuevo Usuario -->
+@if (mostrarModal)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" id="modalNuevoUsuario">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i> Nuevo Usuario
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                </div>
+
+                <EditForm Model="@nuevoUsuario" OnValidSubmit="InsertarUsuario" FormName="formNuevoUsuario">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <InputText class="form-control" @bind-Value="nuevoUsuario.Nombre" />
+                            <ValidationMessage For="@(() => nuevoUsuario.Nombre)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <InputText class="form-control" @bind-Value="nuevoUsuario.Email" />
+                            <ValidationMessage For="@(() => nuevoUsuario.Email)" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-success" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>Guardando...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-save me-1"></i>
+                                <span>Guardar</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Toast para mensajes -->
+@if (mostrarToast)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header @toastHeaderClass">
+                <strong class="me-auto">@toastTitle</strong>
+                <button type="button" class="btn-close" @onclick="CerrarToast"></button>
+            </div>
+            <div class="toast-body">
+                @toastMessage
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    #main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: calc(100% - var(--sidebar-width, 250px));
+        margin-left: var(--sidebar-width, 250px);
+        z-index: 1020;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: margin-left 0.3s, width 0.3s;
+    }
+
+        #main-header h1 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        #main-header .fa-users {
+            font-size: 1.5rem;
+        }
+
+    .modal {
+        z-index: 1060;
+    }
+
+    .toast {
+        z-index: 1070;
+    }
+</style>
+
+@code {
+    private List<Usuario>? usuarios;
+    private Usuario? usuarioEditando;
+    private Usuario nuevoUsuario = new();
+    private int paginaActual = 1;
+    private int tamanioPagina = 15;
+    private string filtroBusqueda = string.Empty;
+    private bool mostrarModal = false;
+    private bool isLoading = false;
+    private bool mostrarToast = false;
+    private string toastMessage = "";
+    private string toastTitle = "";
+    private string toastHeaderClass = "";
+
+    private IEnumerable<Usuario> UsuariosFiltrados
+    {
+        get
+        {
+            if (usuarios == null) return Enumerable.Empty<Usuario>();
+
+            var filtrados = usuarios
+                .Where(u => string.IsNullOrEmpty(filtroBusqueda)
+                            || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
+                            || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase));
+
+            return filtrados
+                .Skip((paginaActual - 1) * tamanioPagina)
+                .Take(tamanioPagina);
+        }
+    }
+
+    private int TotalPaginas => (int)Math.Ceiling(
+        (usuarios?.Count(u => string.IsNullOrEmpty(filtroBusqueda)
+                              || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
+                              || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase))
+          ?? 0) / (double)tamanioPagina
+    );
+
+    private void SiguientePagina()
+    {
+        if (paginaActual < TotalPaginas)
+            paginaActual++;
+    }
+
+    private void PaginaAnterior()
+    {
+        if (paginaActual > 1)
+            paginaActual--;
+    }
+
+    private void AbrirModalNuevoUsuario()
+    {
+        nuevoUsuario = new Usuario();
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        isLoading = false;
+    }
+
+    private void MostrarToast(string mensaje, string titulo, string tipo = "info")
+    {
+        toastMessage = mensaje;
+        toastTitle = titulo;
+        toastHeaderClass = tipo switch
+        {
+            "success" => "bg-success text-white",
+            "error" => "bg-danger text-white",
+            "warning" => "bg-warning",
+            _ => "bg-info text-white"
+        };
+        mostrarToast = true;
+    }
+
+    private void CerrarToast()
+    {
+        mostrarToast = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        usuarios = (await conn.QueryAsync<Usuario>("SELECT Id, Nombre, Email FROM Usuarios ORDER BY Id ASC")).ToList();
+    }
+
+    private void Editar(Usuario u)
+    {
+        usuarioEditando = new Usuario
+        {
+            Id = u.Id,
+            Nombre = u.Nombre,
+            Email = u.Email
+        };
+    }
+
+    private void CancelarEdicion()
+    {
+        usuarioEditando = null;
+    }
+
+    private async Task InsertarUsuario()
+    {
+        isLoading = true;
+
+        try
+        {
+            var cs = Config.GetConnectionString("SqlConnection");
+            if (string.IsNullOrWhiteSpace(cs))
+            {
+                MostrarToast("La cadena de conexión no está configurada", "Error", "error");
+                return;
+            }
+
+            using var conn = new SqlConnection(cs);
+            await conn.OpenAsync();
+
+            var filas = await conn.ExecuteAsync(
+                "INSERT INTO Usuarios (Nombre, Email) VALUES (@Nombre, @Email)",
+                new { nuevoUsuario.Nombre, nuevoUsuario.Email }
+            );
+
+            if (filas > 0)
+            {
+                MostrarToast($"Usuario '{nuevoUsuario.Nombre}' insertado correctamente", "Éxito", "success");
+                await CargarUsuarios();
+                CerrarModal();
+            }
+            else
+            {
+                MostrarToast("No se pudo insertar el usuario", "Error", "error");
+            }
+        }
+        catch (SqlException ex) when (ex.Number == 2627)
+        {
+            MostrarToast("El email ya existe en la base de datos", "Error", "error");
+        }
+        catch (Exception ex)
+        {
+            MostrarToast($"Error: {ex.Message}", "Error", "error");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async void Guardar(int id)
+    {
+        if (usuarioEditando == null) return;
+
+        try
+        {
+            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+            await conn.ExecuteAsync(@"UPDATE Usuarios SET Nombre = @Nombre, Email = @Email WHERE Id = @Id",
+                                 new { usuarioEditando.Nombre, usuarioEditando.Email, Id = id });
+
+            MostrarToast("Usuario actualizado correctamente", "Éxito", "success");
+            await CargarUsuarios();
+            usuarioEditando = null;
+        }
+        catch (Exception ex)
+        {
+            MostrarToast($"Error al actualizar: {ex.Message}", "Error", "error");
+        }
+    }
+
+    private async void Eliminar(int id)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de eliminar este usuario?"))
+            return;
+
+        try
+        {
+            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+            await conn.ExecuteAsync("DELETE FROM Usuarios WHERE Id=@Id", new { Id = id });
+
+            MostrarToast("Usuario eliminado correctamente", "Éxito", "success");
+            await CargarUsuarios();
+
+            if (paginaActual > TotalPaginas)
+                paginaActual = TotalPaginas;
+        }
+        catch (Exception ex)
+        {
+            MostrarToast($"Error al eliminar: {ex.Message}", "Error", "error");
+        }
+    }
+}
