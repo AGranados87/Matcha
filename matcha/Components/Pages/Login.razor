@@ -2,7 +2,7 @@
 @using matcha.Components.Layout
 @layout LoginLayout
 
-<!-- Rectángulo grande de login CENTRADO -->
+<!-- Rectángulo grande de login -->
 <div class="login-card d-flex mx-auto my-auto"
      style="width: 800px; height: 550px; border-radius: 12px; overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: absolute;
@@ -10,30 +10,47 @@
 
     <!-- Izquierda: Imagen + Texto (40%) -->
     <div class="login-left p-4" style="background-color: #fffdeb; width: 40%; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-        <img src="Images/matchaverde.png" alt="Logo" style="max-width: 180px; margin-bottom: 1.5rem;">
+        <img src="Images/matchaverde.png" alt="Logo" style="max-width: 250px; margin-bottom: 1.5rem;">
         <h3 style="color: #06561a; font-family: Caladea, sans-serif; font-weight: bold; font-size: 1.5rem;">Bienvenido a Matcha</h3>
         <p style="color: #5b795b; font-family: 'Aptos', sans-serif; font-size: 1.1rem;">Tu plataforma de gestión eficiente</p>
     </div>
 
     <!-- Derecha: Formulario (60%) -->
-    <div class="login-right p-5" style="background-color: white; width: 60%; display:flex; flex-direction:column; justify-content:center;">
-        <h3 style="font-family: 'Aptos', sans-serif; color: #333; margin-bottom: 2rem; font-size: 1.8rem; text-align: center;">Iniciar Sesión</h3>
+    <!-- Derecha: Formulario (60%) -->
+    <div class="login-right p-5"
+         style="background-color: white; width: 60%; display:flex; flex-direction:column; justify-content:center;
+            /* quitar border-radius para la izquierda */
+            border-top-right-radius:12px;
+            border-bottom-right-radius:12px;
+            border-top-left-radius:0;
+            border-bottom-left-radius:0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+
+        <h3 style="font-family: 'Aptos', sans-serif; color: #333; margin-bottom: 2rem; font-size: 1.8rem; text-align: center;
+               text-shadow: 1px 1px 3px rgba(0,0,0,0.08);">
+            Iniciar Sesión
+        </h3>
 
         <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="w-100">
-            <div class="mb-3">
+            <div class="mb-3" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
                 <InputText @bind-Value="loginModel.UserName"
                            placeholder="Usuario"
-                           class="form-control form-control-lg" />
+                           class="form-control form-control-lg"
+                           style="border:none;" />
             </div>
 
-            <div class="mb-4">
+            <div class="mb-4" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
                 <InputText @bind-Value="loginModel.Password"
                            placeholder="Contraseña"
                            type="password"
-                           class="form-control form-control-lg" />
+                           class="form-control form-control-lg"
+                           style="border:none;" />
             </div>
 
-            <button type="submit" class="btn btn-success btn-lg w-100 py-2">
+            <button type="submit" class="btn w-100 py-2"
+                    style="background: linear-gradient(90deg, #66bb6a, #43a047);
+                       color: white; font-weight: 600; border-radius:8px;
+                       box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;">
                 Entrar
             </button>
         </EditForm>
@@ -49,7 +66,22 @@
         justify-content: center;
         align-items: center;
     }
+
+    /* Hover elegante para el botón */
+    .btn:hover {
+        background: linear-gradient(90deg, #43a047, #388e3c);
+        box-shadow: 0 7px 20px rgba(0,0,0,0.25);
+        transform: translateY(-2px);
+    }
+
+    /* Inputs con efecto al enfocar */
+    input:focus {
+        outline: none;
+        box-shadow: 0 0 5px rgba(102,187,106,0.5);
+    }
 </style>
+
+
 
 @code {
     private LoginModel loginModel = new();
