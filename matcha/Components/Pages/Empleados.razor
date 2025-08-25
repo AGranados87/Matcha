@@ -21,7 +21,7 @@
             <div class="me-2" style="max-width:300px; width:100%;">
                 <label class="form-label d-flex align-items-center mb-1 fs-4">
                     <span class="fas fa-search me-2 text-success"></span>
-                    Filtro de búsqueda
+                    Filtro de Búsqueda
                 </label>
                 <input class="form-control" placeholder="Buscar empleado..."
                        @bind="filtroBusqueda" @bind:event="oninput" />
@@ -53,6 +53,7 @@ else
                             <th scope="col">#</th>
                             <th scope="col">Usuario</th>
                             <th scope="col">Email</th>
+                            <th scope="col">Rol</th>
                             <th scope="col" class="text-center">Activo</th>
                             <th scope="col" class="text-center">Acciones</th>
                         </tr>
@@ -62,6 +63,8 @@ else
                         {
                             <tr>
                                 <th scope="row">@e.EmpleadoID</th>
+
+                                <!-- Usuario -->
                                 <td>
                                     @if (empleadoEditando?.EmpleadoID == e.EmpleadoID)
                                     {
@@ -72,6 +75,8 @@ else
                                         @e.UserName
                                     }
                                 </td>
+
+                                <!-- Email -->
                                 <td>
                                     @if (empleadoEditando?.EmpleadoID == e.EmpleadoID)
                                     {
@@ -82,6 +87,26 @@ else
                                         @e.Email
                                     }
                                 </td>
+
+                                <!-- Rol -->
+                                <td>
+                                    @if (empleadoEditando?.EmpleadoID == e.EmpleadoID)
+                                    {
+                                        <select class="form-select" @bind="empleadoEditando.RolID">
+                                            <option value="0">-- Seleccionar Rol --</option>
+                                            @foreach (var rol in roles)
+                                            {
+                                                <option value="@rol.ID">@rol.Nombre</option>
+                                            }
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        @e.RolNombre
+                                    }
+                                </td>
+
+                                <!-- Activo -->
                                 <td class="text-center">
                                     @if (empleadoEditando?.EmpleadoID == e.EmpleadoID)
                                     {
@@ -92,6 +117,8 @@ else
                                         <input type="checkbox" checked="@e.Activo" disabled />
                                     }
                                 </td>
+
+                                <!-- Acciones -->
                                 <td class="text-center">
                                     @if (empleadoEditando?.EmpleadoID == e.EmpleadoID)
                                     {
@@ -176,6 +203,17 @@ else
                             <InputText class="form-control" type="password" @bind-Value="nuevoEmpleado.PasswordHash" />
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label">Rol *</label>
+                            <select class="form-select" @bind="nuevoEmpleado.RolID">
+                                <option value="0">-- Seleccionar Rol --</option>
+                                @foreach (var rol in roles)
+                                {
+                                    <option value="@rol.ID">@rol.Nombre</option>
+                                }
+                            </select>
+                        </div>
+
                         <div class="mb-3 form-check">
                             <InputCheckbox class="form-check-input" @bind-Value="nuevoEmpleado.Activo" />
                             <label class="form-check-label">Activo</label>
@@ -235,6 +273,7 @@ else
     private int tamanioPagina = 10;
     private string filtroBusqueda = string.Empty;
     private bool mostrarModal = false;
+    private List<Rol> roles = new();
 
     private IEnumerable<Empleado> EmpleadosFiltrados =>
         empleados?
@@ -250,12 +289,26 @@ else
                         || e.UserName.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
                         || e.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)) ?? 0) / (double)tamanioPagina);
 
-    protected override async Task OnInitializedAsync() => await CargarEmpleados();
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRoles();
+        await CargarEmpleados();
+    }
 
     private async Task CargarEmpleados()
     {
         using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        empleados = (await conn.QueryAsync<Empleado>("SELECT * FROM Empleados ORDER BY EmpleadoID ASC")).ToList();
+        empleados = (await conn.QueryAsync<Empleado>(
+            @"SELECT e.EmpleadoID, e.UserName, e.Email, e.Activo, e.RolID, r.Nombre AS RolNombre
+              FROM Empleados e
+              LEFT JOIN Roles r ON e.RolID = r.ID
+              ORDER BY e.EmpleadoID ASC")).ToList();
+    }
+
+    private async Task CargarRoles()
+    {
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        roles = (await conn.QueryAsync<Rol>("SELECT ID, Nombre FROM Roles")).ToList();
     }
 
     private void Editar(Empleado e) => empleadoEditando = new Empleado
@@ -263,7 +316,8 @@ else
         EmpleadoID = e.EmpleadoID,
         UserName = e.UserName,
         Email = e.Email,
-        Activo = e.Activo
+        Activo = e.Activo,
+        RolID = e.RolID
     };
 
     private void CancelarEdicion() => empleadoEditando = null;
@@ -281,14 +335,14 @@ else
 
     private async Task InsertarEmpleado()
     {
-        // Aquí deberías encriptar la contraseña antes de guardar
+        // Encriptar contraseña antes de guardar
         nuevoEmpleado.Salt = Guid.NewGuid().ToString();
         nuevoEmpleado.PasswordHash = HashPassword(nuevoEmpleado.PasswordHash, nuevoEmpleado.Salt);
 
         using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
         await conn.ExecuteAsync(
-            "INSERT INTO Empleados (UserName, Email, PasswordHash, Salt, Activo) " +
-            "VALUES (@UserName, @Email, @PasswordHash, @Salt, @Activo)",
+        @"INSERT INTO Empleados (UserName, Email, PasswordHash, Salt, Activo, RolID)
+          VALUES (@UserName, @Email, @PasswordHash, @Salt, @Activo, @RolID)",
             nuevoEmpleado
         );
 
@@ -296,21 +350,23 @@ else
         CerrarModal();
     }
 
-    private async void Guardar(int id)
+    private async Task Guardar(int id)
     {
         if (empleadoEditando == null) return;
 
         using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
         await conn.ExecuteAsync(
-            "UPDATE Empleados SET UserName=@UserName, Email=@Email, Activo=@Activo WHERE EmpleadoID=@EmpleadoID",
-            empleadoEditando
+        @"UPDATE Empleados
+          SET UserName=@UserName, Email=@Email, Activo=@Activo, RolID=@RolID
+          WHERE EmpleadoID=@EmpleadoID",
+             empleadoEditando
         );
 
         await CargarEmpleados();
         empleadoEditando = null;
     }
 
-    private async void Eliminar(int id)
+    private async Task Eliminar(int id)
     {
         if (!await JS.InvokeAsync<bool>("confirm", "¿Seguro que quieres eliminar este empleado?")) return;
 
@@ -320,7 +376,6 @@ else
         await CargarEmpleados();
     }
 
-    // Método simple de hashing (puedes usar algo más seguro)
     private string HashPassword(string password, string salt)
     {
         using var sha256 = System.Security.Cryptography.SHA256.Create();

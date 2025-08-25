@@ -6,28 +6,15 @@ namespace matcha.Modelo
     [Table("Empleados")]
     public class Empleado
     {
-        [Key]
         public int EmpleadoID { get; set; }
-
-        [Required]
-        [MaxLength(100)]
-        public string UserName { get; set; }
-
-        [Required]
-        [MaxLength(255)]
-        public string PasswordHash { get; set; }
-
-        [Required]
-        [MaxLength(50)]
-        public string Salt { get; set; }
-
-        [MaxLength(255)]
-        public string Email { get; set; }
-
-        [Required]
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-
-        [Required]
-        public bool Activo { get; set; } = true;
+        public string UserName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string PasswordHash { get; set; } = "";
+        public string Salt { get; set; } = "";
+        public DateTime FechaCreacion { get; set; }
+        public bool Activo { get; set; }
+        public int? RolID { get; set; }   // FK
+        public string? RolNombre { get; set; } // Nombre del rol (JOIN con Roles)
     }
+
 }
