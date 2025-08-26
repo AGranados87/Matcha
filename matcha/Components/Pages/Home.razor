@@ -2,10 +2,11 @@
 <PageTitle>Dashboard Psicólogos</PageTitle>
 
 <div class="dashboard-container">
+    
     <!-- Header -->
     <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
         <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
-        <h1 class="m-0">Buenas noches, Álvaro</h1>
+        <h1 class="m-0">@saludo, Fran</h1>
     </header>
 
     <main class="p-4">
@@ -100,8 +101,75 @@
                 </table>
             </div>
         </div>
+    
+
+    <!-- Calendario estilo Google Calendar (mes completo) -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><span class="fas fa-calendar me-2"></span>Calendario - Agosto 2025</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-chevron-left"></i></button>
+                <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="calendar-container">
+                <!-- Cabecera de días -->
+                <div class="calendar-header">
+                    <div>Lun</div>
+                    <div>Mar</div>
+                    <div>Mié</div>
+                    <div>Jue</div>
+                    <div>Vie</div>
+                    <div>Sáb</div>
+                    <div>Dom</div>
+                </div>
+
+                <!-- Grid de días (5 semanas de ejemplo) -->
+                <div class="calendar-grid">
+                    @for (int i = 1; i <= 35; i++)
+                    {
+                        <div class="calendar-day">
+                            <span class="date">@i</span>
+                            @* Ejemplos de citas en varios días *@
+                            @if (i == 3)
+                            {
+                                <div class="event bg-blue">Fran - Juan (10:00)</div>
+                            }
+                            else if (i == 5)
+                            {
+                                <div class="event bg-green">Fran - María (12:00)</div>
+                            }
+                            else if (i == 10)
+                            {
+                                <div class="event bg-red">Fran - Pedro (09:30)</div>
+                                <div class="event bg-purple">Fran - Ana (16:00)</div>
+                            }
+                            else if (i == 15)
+                            {
+                                <div class="event bg-orange">Fran - Lucía (11:00)</div>
+                            }
+                            else if (i == 20)
+                            {
+                                <div class="event bg-teal">Fran - Carlos (17:00)</div>
+                            }
+                            else if (i == 25)
+                            {
+                                <div class="event bg-pink">Fran - Sofía (15:00)</div>
+                            }
+                            else if (i == 30)
+                            {
+                                <div class="event bg-indigo">Fran - Luis (13:00)</div>
+                            }
+                        </div>
+                    }
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </div>
+
 
 <style>
     /* Contenedor general */
@@ -167,4 +235,125 @@
     main {
         margin-top: 10px; 
     }
+
+    .calendar-container {
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+    }
+
+    /* Cabecera de días */
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-weight: 500;
+        font-size: 0.85rem;
+        margin-bottom: 10px;
+        color: #6b7280; 
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* Grid */
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+    }
+
+
+    /* Día */
+    .calendar-day {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        min-height: 120px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        font-size: 0.85rem;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+        .calendar-day:hover {
+            background: #f9fafb;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+        .calendar-day .date {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+
+    /* Evento estilo "pill" */
+    .event {
+        margin-top: 4px;
+        padding: 4px 8px;
+        border-radius: 9999px; /* pill */
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: transform 0.15s ease-in-out;
+    }
+
+        .event:hover {
+            transform: scale(1.05);
+        }
+
+    /* Paleta moderna (colores planos tipo Tailwind) */
+    .bg-blue {
+        background: #3b82f6;
+    }
+
+    .bg-green {
+        background: #22c55e;
+    }
+
+    .bg-red {
+        background: #ef4444;
+    }
+
+    .bg-purple {
+        background: #a855f7;
+    }
+
+    .bg-orange {
+        background: #f97316;
+    }
+
+    .bg-teal {
+        background: #14b8a6;
+    }
+
+    .bg-pink {
+        background: #ec4899;
+    }
+
+    .bg-indigo {
+        background: #6366f1;
+    }
 </style>
+
+@code {
+    private string saludo = "";
+
+    protected override void OnInitialized()
+    {
+        var hora = DateTime.Now.Hour;
+
+        if (hora >= 6 && hora < 12)
+            saludo = "Buenos días";
+        else if (hora >= 12 && hora < 20)
+            saludo = "Buenas tardes";
+        else
+            saludo = "Buenas noches";
+    }
+}
