@@ -1,0 +1,88 @@
+﻿@page "/ayuda"
+
+<header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
+    <span class="fas fa-life-ring fa-2x text-success me-3"></span>
+    <h1 class="m-0">Ayuda</h1>
+</header>
+
+<div class="container mt-5 pt-5">
+    <p>Bienvenido a la sección de ayuda. Aquí encontrarás información y recursos para resolver tus dudas.</p>
+
+    <!-- Caja Documentos -->
+    <div class="card shadow-sm p-4 mt-4">
+        <div class="d-flex align-items-center mb-3">
+            <i class="fas fa-file-alt fa-2x text-success me-2"></i>
+            <h2 class="fs-5 m-0">Documentos</h2>
+        </div>
+
+        <div class="row g-3 mt-2">
+            <!-- Documento 1 -->
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm text-center p-3">
+                    <i class="fas fa-folder fa-3x text-success mb-3"></i>
+                    <h5>Reglamento del Gabinete</h5>
+                    <a href="#" class="btn btn-success mt-2">
+                        <i class="fas fa-download me-1"></i> Descargar
+                    </a>
+                </div>
+            </div>
+
+            <!-- Documento 2 -->
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm text-center p-3">
+                    <i class="fas fa-folder fa-3x text-success mb-3"></i>
+                    <h5>Formulario de Consentimiento</h5>
+                    <a href="#" class="btn btn-success mt-2">
+                        <i class="fas fa-download me-1"></i> Descargar
+                    </a>
+                </div>
+            </div>
+
+            <!-- Documento 3 -->
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm text-center p-3">
+                    <i class="fas fa-folder fa-3x text-success mb-3"></i>
+                    <h5>Formulario de Confidencialidad</h5>
+                    <a href="#" class="btn btn-success mt-2">
+                        <i class="fas fa-download me-1"></i> Descargar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: calc(100% - var(--sidebar-width, 250px));
+        margin-left: var(--sidebar-width, 250px);
+        z-index: 1020;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: margin-left 0.3s, width 0.3s;
+    }
+
+        #main-header h1 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        #main-header .fa-life-ring {
+            font-size: 1.75rem;
+            color: #2e7d32;
+            margin-right: 1rem;
+        }
+
+    .card h5 {
+        margin-bottom: 0.5rem;
+    }
+
+    .btn-success {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
