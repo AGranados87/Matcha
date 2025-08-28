@@ -5,6 +5,7 @@
 @inject IJSRuntime JS
 
 @using Dapper
+@using matcha.Components.Controllers
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient
 
@@ -278,6 +279,7 @@ else
 
 @code {
     private List<Usuario>? usuarios;
+    private List<Empleado> psicologos = new();
     private Usuario? usuarioEditando;
     private Usuario nuevoUsuario = new();
     private int paginaActual = 1;
@@ -289,43 +291,43 @@ else
     private string toastMessage = "";
     private string toastTitle = "";
     private string toastHeaderClass = "";
-    private List<Empleado> psicologos = new();
 
-    private IEnumerable<Usuario> UsuariosFiltrados
+    private UsuariosController usuariosController;
+
+    private IEnumerable<Usuario> UsuariosFiltrados =>
+        usuarios?
+            .Where(u => string.IsNullOrEmpty(filtroBusqueda)
+                        || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
+                        || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase))
+            .Skip((paginaActual - 1) * tamanioPagina)
+            .Take(tamanioPagina)
+        ?? Enumerable.Empty<Usuario>();
+
+    private int TotalPaginas =>
+        (int)Math.Ceiling((usuarios?.Count(u => string.IsNullOrEmpty(filtroBusqueda)
+                        || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
+                        || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)) ?? 0) / (double)tamanioPagina);
+
+    protected override async Task OnInitializedAsync()
     {
-        get
-        {
-            if (usuarios == null) return Enumerable.Empty<Usuario>();
-
-            var filtrados = usuarios
-                .Where(u => string.IsNullOrEmpty(filtroBusqueda)
-                            || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
-                            || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase));
-
-            return filtrados
-                .Skip((paginaActual - 1) * tamanioPagina)
-                .Take(tamanioPagina);
-        }
+        usuariosController = new UsuariosController(Config.GetConnectionString("SqlConnection"));
+        await CargarPsicologos();
+        await CargarUsuarios();
     }
 
-    private int TotalPaginas => (int)Math.Ceiling(
-        (usuarios?.Count(u => string.IsNullOrEmpty(filtroBusqueda)
-                              || u.Nombre.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)
-                              || u.Email.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase))
-          ?? 0) / (double)tamanioPagina
-    );
+    private async Task CargarUsuarios() => usuarios = await usuariosController.GetUsuariosAsync();
 
-    private void SiguientePagina()
-    {
-        if (paginaActual < TotalPaginas)
-            paginaActual++;
-    }
+    private async Task CargarPsicologos() => psicologos = await usuariosController.GetPsicologosAsync();
 
-    private void PaginaAnterior()
+    private void Editar(Usuario u) => usuarioEditando = new Usuario
     {
-        if (paginaActual > 1)
-            paginaActual--;
-    }
+        PacienteID = u.PacienteID,
+        Nombre = u.Nombre,
+        Email = u.Email,
+        EmpleadoID = u.EmpleadoID
+    };
+
+    private void CancelarEdicion() => usuarioEditando = null;
 
     private void AbrirModalNuevoUsuario()
     {
@@ -353,87 +355,17 @@ else
         mostrarToast = true;
     }
 
-    private void CerrarToast()
-    {
-        mostrarToast = false;
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await CargarUsuarios();
-        await CargarPsicologos();
-    }
-
-    private async Task CargarPsicologos()
-    {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        psicologos = (await conn.QueryAsync<Empleado>(
-            "SELECT EmpleadoID, UserName FROM Empleados WHERE RolID = 2 ORDER BY UserName"
-        )).ToList();
-    }
-
-    private async Task CargarUsuarios()
-    {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        usuarios = (await conn.QueryAsync<Usuario>(@"
-            SELECT
-                u.PacienteID,
-                u.Nombre,
-                u.Email,
-                u.EmpleadoID,
-                e.UserName AS Psicologo
-            FROM Usuarios u
-            LEFT JOIN Empleados e ON u.EmpleadoID = e.EmpleadoID
-            ORDER BY u.PacienteID ASC;")).ToList();
-    }
-
-    private void Editar(Usuario u)
-    {
-        usuarioEditando = new Usuario
-        {
-            PacienteID = u.PacienteID,
-            Nombre = u.Nombre,
-            Email = u.Email,
-            EmpleadoID = u.EmpleadoID
-        };
-    }
-
-    private void CancelarEdicion()
-    {
-        usuarioEditando = null;
-    }
+    private void CerrarToast() => mostrarToast = false;
 
     private async Task InsertarUsuario()
     {
         isLoading = true;
-
         try
         {
-            var cs = Config.GetConnectionString("SqlConnection");
-            if (string.IsNullOrWhiteSpace(cs))
-            {
-                MostrarToast("La cadena de conexión no está configurada", "Error", "error");
-                return;
-            }
-
-            using var conn = new SqlConnection(cs);
-            await conn.OpenAsync();
-
-            var filas = await conn.ExecuteAsync(
-                "INSERT INTO Usuarios (Nombre, Email, EmpleadoID) VALUES (@Nombre, @Email, @EmpleadoID)",
-                new { nuevoUsuario.Nombre, nuevoUsuario.Email, nuevoUsuario.EmpleadoID }
-            );
-
-            if (filas > 0)
-            {
-                MostrarToast($"Usuario '{nuevoUsuario.Nombre}' insertado correctamente", "Éxito", "success");
-                await CargarUsuarios();
-                CerrarModal();
-            }
-            else
-            {
-                MostrarToast("No se pudo insertar el usuario", "Error", "error");
-            }
+            await usuariosController.InsertarUsuarioAsync(nuevoUsuario);
+            MostrarToast($"Usuario '{nuevoUsuario.Nombre}' insertado correctamente", "Éxito", "success");
+            await CargarUsuarios();
+            CerrarModal();
         }
         catch (SqlException ex) when (ex.Number == 2627)
         {
@@ -449,19 +381,14 @@ else
         }
     }
 
-    private async void Guardar(int pacienteId)
+    private async Task Guardar(int pacienteId)
     {
         if (usuarioEditando == null) return;
 
+        usuarioEditando.PacienteID = pacienteId;
         try
         {
-            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-            await conn.ExecuteAsync(@"
-                UPDATE Usuarios
-                SET Nombre = @Nombre, Email = @Email, EmpleadoID = @EmpleadoID
-                WHERE PacienteID = @PacienteID",
-                new { usuarioEditando.Nombre, usuarioEditando.Email, usuarioEditando.EmpleadoID, PacienteID = pacienteId });
-
+            await usuariosController.ActualizarUsuarioAsync(usuarioEditando);
             MostrarToast("Usuario actualizado correctamente", "Éxito", "success");
             await CargarUsuarios();
             usuarioEditando = null;
@@ -472,16 +399,14 @@ else
         }
     }
 
-    private async void Eliminar(int pacienteId)
+    private async Task Eliminar(int pacienteId)
     {
         if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de eliminar este usuario?"))
             return;
 
         try
         {
-            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-            await conn.ExecuteAsync("DELETE FROM Usuarios WHERE PacienteID=@PacienteID", new { PacienteID = pacienteId });
-
+            await usuariosController.EliminarUsuarioAsync(pacienteId);
             MostrarToast("Usuario eliminado correctamente", "Éxito", "success");
             await CargarUsuarios();
 
@@ -493,4 +418,7 @@ else
             MostrarToast($"Error al eliminar: {ex.Message}", "Error", "error");
         }
     }
+
+    private void SiguientePagina() { if (paginaActual < TotalPaginas) paginaActual++; }
+    private void PaginaAnterior() { if (paginaActual > 1) paginaActual--; }
 }
