@@ -1,5 +1,11 @@
 ﻿@page "/"
 
+@inject IConfiguration Config
+
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using matcha.Modelo
+
 <PageTitle>Dashboard Psicólogos</PageTitle>
 
 <div class="dashboard-container">
@@ -19,7 +25,7 @@
                         <span class="fas fa-user-injured fa-2x me-3"></span>
                         <div>
                             <h6 class="mb-1">Pacientes activos</h6>
-                            <h3 class="mb-0">24</h3>
+                            <h3 class="mb-0">@PacientesActivos</h3>
                         </div>
                     </div>
                 </div>
@@ -344,16 +350,27 @@
 
 @code {
     private string saludo = "";
+    private List<Usuario> usuarios = new();
+    private int PacientesActivos => usuarios?.Count ?? 0;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // Saludo dinámico
         var hora = DateTime.Now.Hour;
-
         if (hora >= 6 && hora < 12)
             saludo = "Buenos días";
         else if (hora >= 12 && hora < 20)
             saludo = "Buenas tardes";
         else
             saludo = "Buenas noches";
+
+        // Cargar usuarios desde la base de datos
+        await CargarUsuarios();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+        usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
     }
 }
