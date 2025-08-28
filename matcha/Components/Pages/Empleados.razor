@@ -4,6 +4,7 @@
 @inject IJSRuntime JS
 
 @using Dapper
+@using matcha.Components.Controllers
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient
 
@@ -271,11 +272,13 @@ else
     private List<Empleado>? empleados;
     private Empleado? empleadoEditando;
     private Empleado nuevoEmpleado = new();
+    private List<Rol> roles = new();
     private int paginaActual = 1;
     private int tamanioPagina = 10;
     private string filtroBusqueda = string.Empty;
     private bool mostrarModal = false;
-    private List<Rol> roles = new();
+
+    private EmpleadosController empleadosController;
 
     private IEnumerable<Empleado> EmpleadosFiltrados =>
         empleados?
@@ -293,25 +296,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        empleadosController = new EmpleadosController(Config.GetConnectionString("SqlConnection"));
         await CargarRoles();
         await CargarEmpleados();
     }
 
-    private async Task CargarEmpleados()
-    {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        empleados = (await conn.QueryAsync<Empleado>(
-            @"SELECT e.EmpleadoID, e.UserName, e.Email, e.Activo, e.RolID, r.Nombre AS RolNombre
-              FROM Empleados e
-              LEFT JOIN Roles r ON e.RolID = r.ID
-              ORDER BY e.EmpleadoID ASC")).ToList();
-    }
+    private async Task CargarEmpleados() => empleados = await empleadosController.GetEmpleadosAsync();
 
-    private async Task CargarRoles()
-    {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        roles = (await conn.QueryAsync<Rol>("SELECT ID, Nombre FROM Roles")).ToList();
-    }
+    private async Task CargarRoles() => roles = await empleadosController.GetRolesAsync();
 
     private void Editar(Empleado e) => empleadoEditando = new Empleado
     {
@@ -337,17 +329,10 @@ else
 
     private async Task InsertarEmpleado()
     {
-        // Encriptar contraseña antes de guardar
         nuevoEmpleado.Salt = Guid.NewGuid().ToString();
         nuevoEmpleado.PasswordHash = HashPassword(nuevoEmpleado.PasswordHash, nuevoEmpleado.Salt);
 
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        await conn.ExecuteAsync(
-        @"INSERT INTO Empleados (UserName, Email, PasswordHash, Salt, Activo, RolID)
-          VALUES (@UserName, @Email, @PasswordHash, @Salt, @Activo, @RolID)",
-            nuevoEmpleado
-        );
-
+        await empleadosController.InsertarEmpleadoAsync(nuevoEmpleado);
         await CargarEmpleados();
         CerrarModal();
     }
@@ -356,14 +341,8 @@ else
     {
         if (empleadoEditando == null) return;
 
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        await conn.ExecuteAsync(
-        @"UPDATE Empleados
-          SET UserName=@UserName, Email=@Email, Activo=@Activo, RolID=@RolID
-          WHERE EmpleadoID=@EmpleadoID",
-             empleadoEditando
-        );
-
+        empleadoEditando.EmpleadoID = id;
+        await empleadosController.ActualizarEmpleadoAsync(empleadoEditando);
         await CargarEmpleados();
         empleadoEditando = null;
     }
@@ -372,9 +351,7 @@ else
     {
         if (!await JS.InvokeAsync<bool>("confirm", "¿Seguro que quieres eliminar este empleado?")) return;
 
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        await conn.ExecuteAsync("DELETE FROM Empleados WHERE EmpleadoID=@EmpleadoID", new { EmpleadoID = id });
-
+        await empleadosController.EliminarEmpleadoAsync(id);
         await CargarEmpleados();
     }
 
