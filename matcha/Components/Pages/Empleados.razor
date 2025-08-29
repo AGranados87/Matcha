@@ -329,8 +329,8 @@ else
 
     private async Task InsertarEmpleado()
     {
-        nuevoEmpleado.Salt = Guid.NewGuid().ToString();
-        nuevoEmpleado.PasswordHash = HashPassword(nuevoEmpleado.PasswordHash, nuevoEmpleado.Salt);
+        // Hash directo de la contraseña
+        nuevoEmpleado.PasswordHash = HashPassword(nuevoEmpleado.PasswordHash);
 
         await empleadosController.InsertarEmpleadoAsync(nuevoEmpleado);
         await CargarEmpleados();
@@ -340,6 +340,10 @@ else
     private async Task Guardar(int id)
     {
         if (empleadoEditando == null) return;
+
+        // Si quieres permitir cambiar la contraseña en edición
+        if (!string.IsNullOrWhiteSpace(empleadoEditando.PasswordHash))
+            empleadoEditando.PasswordHash = HashPassword(empleadoEditando.PasswordHash);
 
         empleadoEditando.EmpleadoID = id;
         await empleadosController.ActualizarEmpleadoAsync(empleadoEditando);
@@ -355,10 +359,10 @@ else
         await CargarEmpleados();
     }
 
-    private string HashPassword(string password, string salt)
+    private string HashPassword(string password)
     {
         using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(password + salt);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(password);
         var hash = sha256.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
     }

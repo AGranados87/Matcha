@@ -10,7 +10,6 @@ namespace matcha.Modelo
         public string UserName { get; set; } = "";
         public string Email { get; set; } = "";
         public string PasswordHash { get; set; } = "";
-        public string Salt { get; set; } = "";
         public DateTime FechaCreacion { get; set; }
         public bool Activo { get; set; }
         public int? RolID { get; set; }   // FK

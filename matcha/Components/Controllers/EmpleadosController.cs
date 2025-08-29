@@ -35,8 +35,8 @@ namespace matcha.Components.Controllers
         {
             using var conn = new SqlConnection(_connectionString);
             await conn.ExecuteAsync(@"
-                INSERT INTO Empleados (UserName, Email, PasswordHash, Salt, Activo, RolID)
-                VALUES (@UserName, @Email, @PasswordHash, @Salt, @Activo, @RolID)",
+                INSERT INTO Empleados (UserName, Email, PasswordHash, Activo, RolID)
+                VALUES (@UserName, @Email, @PasswordHash, @Activo, @RolID)",
                 empleado);
         }
 
@@ -55,5 +55,37 @@ namespace matcha.Components.Controllers
             using var conn = new SqlConnection(_connectionString);
             await conn.ExecuteAsync("DELETE FROM Empleados WHERE EmpleadoID=@EmpleadoID", new { EmpleadoID = id });
         }
+
+        public async Task<Empleado?> AutenticarAsync(string email, string password)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                return null;
+
+            using var conn = new SqlConnection(_connectionString);
+
+            var empleado = await conn.QueryFirstOrDefaultAsync<Empleado>(
+                "SELECT * FROM Empleados WHERE Email = @Email AND Activo = 1",
+                new { Email = email.Trim() });
+
+            if (empleado == null)
+                return null;
+
+            var hash = HashPassword(password.Trim());
+
+            return string.Equals(hash, empleado.PasswordHash, StringComparison.Ordinal) ? empleado : null;
+        }
+
+        private string HashPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password))
+                password = "";
+
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(password);
+            byte[] hash = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hash);  // <-- igual que tu DB
+        }
+
+
     }
 }

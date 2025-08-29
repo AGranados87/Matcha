@@ -1,6 +1,10 @@
 ﻿@page "/login"
+@using matcha.Components.Controllers
 @using matcha.Components.Layout
 @layout LoginLayout
+
+@inject NavigationManager Navigation
+@inject IConfiguration Config
 
 <!-- Rectángulo grande de login -->
 <div class="login-card d-flex mx-auto my-auto"
@@ -18,7 +22,6 @@
     <!-- Derecha: Formulario (60%) -->
     <div class="login-right p-5"
          style="background-color: white; width: 60%; display:flex; flex-direction:column; justify-content:center;
-            /* quitar border-radius para la izquierda */
             border-top-right-radius:12px;
             border-bottom-right-radius:12px;
             border-top-left-radius:0;
@@ -30,26 +33,26 @@
             Iniciar Sesión
         </h3>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="w-100">
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm" class="w-100">
+            @if (!string.IsNullOrEmpty(errorLogin))
+            {
+                <div class="alert alert-danger text-center">
+                    @errorLogin
+                </div>
+            }
+
             <div class="mb-3" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
-                <InputText @bind-Value="loginModel.UserName"
-                           placeholder="Usuario"
-                           class="form-control form-control-lg"
-                           style="border:none;" />
+                <InputText @bind-Value="loginModel.Email" placeholder="Email" class="form-control form-control-lg" />
             </div>
 
             <div class="mb-4" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
-                <InputText @bind-Value="loginModel.Password"
-                           placeholder="Contraseña"
-                           type="password"
-                           class="form-control form-control-lg"
-                           style="border:none;" />
+                <InputText @bind-Value="loginModel.Password" placeholder="Contraseña" type="password" class="form-control form-control-lg" />
             </div>
 
             <button type="submit" class="btn w-100 py-2"
                     style="background: linear-gradient(90deg, #66bb6a, #43a047);
-                       color: white; font-weight: 600; border-radius:8px;
-                       box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;">
+                           color: white; font-weight: 600; border-radius:8px;
+                           box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;">
                 Entrar
             </button>
         </EditForm>
@@ -58,7 +61,7 @@
 
 <style>
     body {
-        background-color: #d8ead8; /* Fondo gris claro */
+        background-color: #d8ead8;
         height: 100vh;
         margin: 0;
         display: flex;
@@ -66,14 +69,12 @@
         align-items: center;
     }
 
-    /* Hover elegante para el botón */
     .btn:hover {
         background: linear-gradient(90deg, #43a047, #388e3c);
         box-shadow: 0 7px 20px rgba(0,0,0,0.25);
         transform: translateY(-2px);
     }
 
-    /* Inputs con efecto al enfocar */
     input:focus {
         outline: none;
         box-shadow: 0 0 5px rgba(102,187,106,0.5);
@@ -82,15 +83,39 @@
 
 @code {
     private LoginModel loginModel = new();
+    private EmpleadosController empleadosController;
+    private string errorLogin = "";
 
-    private void HandleLogin()
+    protected override void OnInitialized()
     {
-        // Lógica de login
+        empleadosController = new EmpleadosController(Config.GetConnectionString("SqlConnection"));
+    }
+
+    private async Task HandleLogin()
+    {
+        errorLogin = "";
+
+        if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
+        {
+            errorLogin = "Debes introducir email y contraseña.";
+            return;
+        }
+
+        var empleado = await empleadosController.AutenticarAsync(loginModel.Email, loginModel.Password);
+
+        if (empleado == null)
+        {
+            errorLogin = "Email o contraseña incorrectos, o cuenta inactiva.";
+            return;
+        }
+
+        // Login exitoso
+        Navigation.NavigateTo("/dashboard");
     }
 
     public class LoginModel
     {
-        public string UserName { get; set; }
+        public string Email { get; set; }
         public string Password { get; set; }
     }
 }
