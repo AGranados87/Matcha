@@ -4,13 +4,13 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(to bottom, #FFF5E1, #FFFFFF); /* crema → blanco */
+    background: linear-gradient(to bottom, #d8ead8, #edf6ed);
     font-family: Aptos;
 }
 
 main {
     flex: 1;
-    background: linear-gradient(to bottom, #FFF5E1, #FFFFFF);
+    background: linear-gradient(to bottom, #d8ead8, #edf6ed);
     padding: 1rem;
 }
 
