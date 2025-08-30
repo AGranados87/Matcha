@@ -1,12 +1,12 @@
 ﻿@page "/login"
 @using matcha.Components.Controllers
 @using matcha.Components.Layout
+@using Microsoft.AspNetCore.Identity
 @layout LoginLayout
 
 @inject NavigationManager Navigation
 @inject IConfiguration Config
 
-<!-- Rectángulo grande de login -->
 <div class="login-card d-flex mx-auto my-auto"
      style="width: 800px; height: 550px; border-radius: 12px; overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: absolute;
@@ -109,13 +109,13 @@
             return;
         }
 
-        // Login exitoso
+        // Login exitoso → redirige al dashboard
         Navigation.NavigateTo("/dashboard");
     }
 
     public class LoginModel
     {
-        public string Email { get; set; }
-        public string Password { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 }

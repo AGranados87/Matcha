@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using matcha.Modelo;
 
@@ -7,10 +8,12 @@ namespace matcha.Components.Controllers
     public class EmpleadosController
     {
         private readonly string _connectionString;
+        private readonly PasswordHasher<Empleado> _passwordHasher;
 
         public EmpleadosController(string connectionString)
         {
             _connectionString = connectionString;
+            _passwordHasher = new PasswordHasher<Empleado>();
         }
 
         public async Task<List<Empleado>> GetEmpleadosAsync()
@@ -31,8 +34,11 @@ namespace matcha.Components.Controllers
             return roles.ToList();
         }
 
-        public async Task InsertarEmpleadoAsync(Empleado empleado)
+        public async Task InsertarEmpleadoAsync(Empleado empleado, string password)
         {
+            // Hashear la contraseña
+            empleado.PasswordHash = _passwordHasher.HashPassword(empleado, password);
+
             using var conn = new SqlConnection(_connectionString);
             await conn.ExecuteAsync(@"
                 INSERT INTO Empleados (UserName, Email, PasswordHash, Activo, RolID)
@@ -40,12 +46,19 @@ namespace matcha.Components.Controllers
                 empleado);
         }
 
-        public async Task ActualizarEmpleadoAsync(Empleado empleado)
+        public async Task ActualizarEmpleadoAsync(Empleado empleado, string? password = null)
         {
+            // Si se proporciona nueva contraseña, se hash
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                empleado.PasswordHash = _passwordHasher.HashPassword(empleado, password);
+            }
+
             using var conn = new SqlConnection(_connectionString);
             await conn.ExecuteAsync(@"
                 UPDATE Empleados
-                SET UserName=@UserName, Email=@Email, Activo=@Activo, RolID=@RolID
+                SET UserName=@UserName, Email=@Email, Activo=@Activo, RolID=@RolID, 
+                    PasswordHash=@PasswordHash
                 WHERE EmpleadoID=@EmpleadoID",
                 empleado);
         }
@@ -70,22 +83,11 @@ namespace matcha.Components.Controllers
             if (empleado == null)
                 return null;
 
-            var hash = HashPassword(password.Trim());
+            var hasher = new PasswordHasher<Empleado>();
+            var resultado = hasher.VerifyHashedPassword(empleado, empleado.PasswordHash, password.Trim());
 
-            return string.Equals(hash, empleado.PasswordHash, StringComparison.Ordinal) ? empleado : null;
+            return resultado == PasswordVerificationResult.Success ? empleado : null;
         }
-
-        private string HashPassword(string password)
-        {
-            if (string.IsNullOrEmpty(password))
-                password = "";
-
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(password);
-            byte[] hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);  // <-- igual que tu DB
-        }
-
 
     }
 }

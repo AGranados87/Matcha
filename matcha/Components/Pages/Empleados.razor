@@ -7,6 +7,7 @@
 @using matcha.Components.Controllers
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient
+@using Microsoft.AspNetCore.Identity
 
 <PageTitle>Listado de Empleados</PageTitle>
 
@@ -35,7 +36,6 @@
         </div>
     </div>
 </div>
-
 
 @if (empleados == null)
 {
@@ -302,20 +302,23 @@ else
     }
 
     private async Task CargarEmpleados() => empleados = await empleadosController.GetEmpleadosAsync();
-
     private async Task CargarRoles() => roles = await empleadosController.GetRolesAsync();
 
-    private void Editar(Empleado e) => empleadoEditando = new Empleado
+    private void Editar(Empleado e)
     {
-        EmpleadoID = e.EmpleadoID,
-        UserName = e.UserName,
-        Email = e.Email,
-        Activo = e.Activo,
-        RolID = e.RolID
-    };
+        empleadoEditando = new Empleado
+        {
+            EmpleadoID = e.EmpleadoID,
+            UserName = e.UserName,
+            Email = e.Email,
+            Activo = e.Activo,
+            RolID = e.RolID
+        };
+        // Limpiar PasswordHash temporalmente para edición
+        empleadoEditando.PasswordHash = string.Empty;
+    }
 
     private void CancelarEdicion() => empleadoEditando = null;
-
     private void SiguientePagina() { if (paginaActual < TotalPaginas) paginaActual++; }
     private void PaginaAnterior() { if (paginaActual > 1) paginaActual--; }
 
@@ -329,10 +332,13 @@ else
 
     private async Task InsertarEmpleado()
     {
-        // Hash directo de la contraseña
-        nuevoEmpleado.PasswordHash = HashPassword(nuevoEmpleado.PasswordHash);
+        if (string.IsNullOrWhiteSpace(nuevoEmpleado.PasswordHash))
+        {
+            await JS.InvokeVoidAsync("alert", "Debes indicar una contraseña.");
+            return;
+        }
 
-        await empleadosController.InsertarEmpleadoAsync(nuevoEmpleado);
+        await empleadosController.InsertarEmpleadoAsync(nuevoEmpleado, nuevoEmpleado.PasswordHash);
         await CargarEmpleados();
         CerrarModal();
     }
@@ -341,12 +347,13 @@ else
     {
         if (empleadoEditando == null) return;
 
-        // Si quieres permitir cambiar la contraseña en edición
-        if (!string.IsNullOrWhiteSpace(empleadoEditando.PasswordHash))
-            empleadoEditando.PasswordHash = HashPassword(empleadoEditando.PasswordHash);
+        // Si se ingresó nueva contraseña, se pasa a controller
+        string? nuevaPass = string.IsNullOrWhiteSpace(empleadoEditando.PasswordHash)
+            ? null
+            : empleadoEditando.PasswordHash;
 
         empleadoEditando.EmpleadoID = id;
-        await empleadosController.ActualizarEmpleadoAsync(empleadoEditando);
+        await empleadosController.ActualizarEmpleadoAsync(empleadoEditando, nuevaPass);
         await CargarEmpleados();
         empleadoEditando = null;
     }
@@ -357,13 +364,5 @@ else
 
         await empleadosController.EliminarEmpleadoAsync(id);
         await CargarEmpleados();
-    }
-
-    private string HashPassword(string password)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(password);
-        var hash = sha256.ComputeHash(bytes);
-        return Convert.ToBase64String(hash);
     }
 }
