@@ -2,6 +2,7 @@
 @using matcha.Components.Controllers
 @using matcha.Components.Layout
 @using Microsoft.AspNetCore.Identity
+@using matcha.Modelo
 @layout LoginLayout
 
 @inject NavigationManager Navigation
@@ -113,9 +114,4 @@
         Navigation.NavigateTo("/dashboard");
     }
 
-    public class LoginModel
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
 }
