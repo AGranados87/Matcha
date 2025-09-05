@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Identity
 @using matcha.Modelo
 @layout LoginLayout
+@rendermode InteractiveServer
 
 @inject NavigationManager Navigation
 @inject IConfiguration Config
@@ -35,6 +36,8 @@
         </h3>
 
         <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm" class="w-100">
+            <DataAnnotationsValidator />
+
             @if (!string.IsNullOrEmpty(errorLogin))
             {
                 <div class="alert alert-danger text-center">
@@ -42,19 +45,39 @@
                 </div>
             }
 
+            @if (isLoading)
+            {
+                <div class="alert alert-info text-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    Verificando credenciales...
+                </div>
+            }
+
             <div class="mb-3" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
-                <InputText @bind-Value="loginModel.Email" placeholder="Email" class="form-control form-control-lg" />
+                <InputText @bind-Value="loginModel.Email" placeholder="Email" class="form-control form-control-lg"
+                           disabled="@isLoading" @oninput="OnEmailInput" />
             </div>
 
             <div class="mb-4" style="border-radius:8px; overflow:hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #c4c4c4;">
-                <InputText @bind-Value="loginModel.Password" placeholder="Contraseña" type="password" class="form-control form-control-lg" />
+                <InputText @bind-Value="loginModel.Password" placeholder="Contraseña" type="password" class="form-control form-control-lg"
+                           disabled="@isLoading" @oninput="OnPasswordInput" />
             </div>
 
-            <button type="submit" class="btn w-100 py-2"
+            <button type="submit" class="btn w-100 py-2" disabled="@isLoading"
                     style="background: linear-gradient(90deg, #66bb6a, #43a047);
                            color: white; font-weight: 600; border-radius:8px;
                            box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;">
-                Entrar
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <text>Iniciando sesión...</text>
+                }
+                else
+                {
+                    <text>Entrar</text>
+                }
             </button>
         </EditForm>
     </div>
@@ -70,48 +93,185 @@
         align-items: center;
     }
 
-    .btn:hover {
+    .btn:hover:not(:disabled) {
         background: linear-gradient(90deg, #43a047, #388e3c);
         box-shadow: 0 7px 20px rgba(0,0,0,0.25);
         transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
     }
 
     input:focus {
         outline: none;
         box-shadow: 0 0 5px rgba(102,187,106,0.5);
     }
+
+    input:disabled {
+        background-color: #f8f9fa;
+        opacity: 0.7;
+    }
+
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
 </style>
 
 @code {
     private LoginModel loginModel = new();
-    private EmpleadosController empleadosController;
+    private EmpleadosController? empleadosController;
     private string errorLogin = "";
+    private bool isLoading = false;
+    private int intentosLogin = 0;
+    private DateTime? ultimoIntentoFallido;
+    private const int MaxIntentosLogin = 5;
+    private const int TiempoBloqueoMinutos = 15;
 
     protected override void OnInitialized()
     {
-        empleadosController = new EmpleadosController(Config.GetConnectionString("SqlConnection"));
+        var connectionString = Config.GetConnectionString("SqlConnection");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            errorLogin = "Error de configuración del sistema. Contacte al administrador.";
+            return;
+        }
+
+        empleadosController = new EmpleadosController(connectionString);
+    }
+
+    private void OnEmailInput(ChangeEventArgs e)
+    {
+        loginModel.Email = e.Value?.ToString()?.Trim() ?? "";
+        LimpiarError();
+    }
+
+    private void OnPasswordInput(ChangeEventArgs e)
+    {
+        loginModel.Password = e.Value?.ToString() ?? "";
+        LimpiarError();
+    }
+
+    private void LimpiarError()
+    {
+        if (!string.IsNullOrEmpty(errorLogin))
+        {
+            errorLogin = "";
+            StateHasChanged();
+        }
+    }
+
+    private bool EstaBloquedoPorIntentos()
+    {
+        if (intentosLogin < MaxIntentosLogin) return false;
+        if (ultimoIntentoFallido == null) return false;
+
+        var tiempoTranscurrido = DateTime.Now - ultimoIntentoFallido.Value;
+        if (tiempoTranscurrido.TotalMinutes >= TiempoBloqueoMinutos)
+        {
+            // Resetear contador después del tiempo de bloqueo
+            intentosLogin = 0;
+            ultimoIntentoFallido = null;
+            return false;
+        }
+
+        return true;
     }
 
     private async Task HandleLogin()
     {
         errorLogin = "";
 
-        if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
+        try
         {
-            errorLogin = "Debes introducir email y contraseña.";
-            return;
+            // Verificar bloqueo por intentos fallidos
+            if (EstaBloquedoPorIntentos())
+            {
+                var tiempoRestante = TiempoBloqueoMinutos - (DateTime.Now - ultimoIntentoFallido!.Value).TotalMinutes;
+                errorLogin = $"Demasiados intentos fallidos. Intente nuevamente en {Math.Ceiling(tiempoRestante)} minutos.";
+                return;
+            }
+
+            // Validación de campos
+            if (string.IsNullOrWhiteSpace(loginModel.Email) || string.IsNullOrWhiteSpace(loginModel.Password))
+            {
+                errorLogin = "Debes introducir email y contraseña.";
+                return;
+            }
+
+            // Validación básica de email
+            if (!IsValidEmail(loginModel.Email))
+            {
+                errorLogin = "Por favor, introduce un email válido.";
+                return;
+            }
+
+            if (empleadosController == null)
+            {
+                errorLogin = "Error del sistema. Contacte al administrador.";
+                return;
+            }
+
+            isLoading = true;
+            StateHasChanged();
+
+            await Task.Delay(500);
+
+            var empleado = await empleadosController.AutenticarAsync(loginModel.Email, loginModel.Password);
+
+            if (empleado == null)
+            {
+                // Incrementar contador de intentos fallidos
+                intentosLogin++;
+                ultimoIntentoFallido = DateTime.Now;
+
+                if (intentosLogin >= MaxIntentosLogin)
+                {
+                    errorLogin = $"Demasiados intentos fallidos. Su cuenta ha sido bloqueada por {TiempoBloqueoMinutos} minutos.";
+                }
+                else
+                {
+                    var intentosRestantes = MaxIntentosLogin - intentosLogin;
+                    errorLogin = $"Email o contraseña incorrectos. Intentos restantes: {intentosRestantes}";
+                }
+                return;
+            }
+
+            // Login exitoso - resetear intentos
+            intentosLogin = 0;
+            ultimoIntentoFallido = null;
+
+            // Redirigir al dashboard
+            Navigation.NavigateTo("/", forceLoad: true);
         }
-
-        var empleado = await empleadosController.AutenticarAsync(loginModel.Email, loginModel.Password);
-
-        if (empleado == null)
+        catch (Exception ex)
         {
-            errorLogin = "Email o contraseña incorrectos, o cuenta inactiva.";
-            return;
-        }
+            errorLogin = "Error del sistema durante el inicio de sesión. Intente nuevamente.";
 
-        // Login exitoso → redirige al dashboard
-        Navigation.NavigateTo("/dashboard");
+            Console.WriteLine($"Error en HandleLogin: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
+    private static bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false;
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return addr.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

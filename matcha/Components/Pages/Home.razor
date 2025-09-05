@@ -1,15 +1,18 @@
 ﻿@page "/"
-
 @inject IConfiguration Config
 
 @using Dapper
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.Data.SqlClient
 @using matcha.Modelo
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
 
 <PageTitle>Dashboard Psicólogos</PageTitle>
 
 <div class="dashboard-container">
-    
+
     <!-- Header -->
     <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
         <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
@@ -30,7 +33,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-md-3">
                 <div class="card card-dashboard shadow-sm text-white" style="background: linear-gradient(135deg, #60a5fa, #2563eb);">
                     <div class="card-body d-flex align-items-center">
@@ -42,7 +44,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-md-3">
                 <div class="card card-dashboard shadow-sm text-white" style="background: linear-gradient(135deg, #facc15, #d97706);">
                     <div class="card-body d-flex align-items-center">
@@ -54,7 +55,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="col-md-3">
                 <div class="card card-dashboard shadow-sm text-white" style="background: linear-gradient(135deg, #f87171, #b91c1c);">
                     <div class="card-body d-flex align-items-center">
@@ -89,8 +89,7 @@
                             <td>Dra. López</td>
                             <td>22/08/2025 10:00</td>
                             <td>Individual</td>
-                        </tr>    
-
+                        </tr>
                         <tr>
                             <td>María Sánchez</td>
                             <td>Dr. Ruiz</td>
@@ -107,68 +106,45 @@
                 </table>
             </div>
         </div>
-    
 
-    <!-- Calendario estilo Google Calendar (mes completo) -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><span class="fas fa-calendar me-2"></span>Calendario - Agosto 2025</h5>
-            <div>
-                <button class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-chevron-left"></i></button>
-                <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-chevron-right"></i></button>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="calendar-container">
-                <!-- Cabecera de días -->
-                <div class="calendar-header">
-                    <div>Lun</div>
-                    <div>Mar</div>
-                    <div>Mié</div>
-                    <div>Jue</div>
-                    <div>Vie</div>
-                    <div>Sáb</div>
-                    <div>Dom</div>
+        <!-- Calendario estilo Google Calendar -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <span class="fas fa-calendar me-2"></span>
+                    Calendario - @Capitalize(currentMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES")))
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" @onclick="PreviousMonth">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="NextMonth">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
+            </div>
+            <div class="card-body">
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mié</div>
+                        <div>Jue</div>
+                        <div>Vie</div>
+                        <div>Sáb</div>
+                        <div>Dom</div>
+                    </div>
 
-                <!-- Grid de días (5 semanas de ejemplo) -->
-                <div class="calendar-grid">
-                    @for (int i = 1; i <= 35; i++)
-                    {
-                        <div class="calendar-day">
-                            <span class="date">@i</span>
-                            @* Ejemplos de citas en varios días *@
-                            @if (i == 3)
-                            {
-                                <div class="event bg-blue">Fran - Juan (10:00)</div>
-                            }
-                            else if (i == 5)
-                            {
-                                <div class="event bg-green">Fran - María (12:00)</div>
-                            }
-                            else if (i == 10)
-                            {
-                                <div class="event bg-red">Fran - Pedro (09:30)</div>
-                                <div class="event bg-purple">Fran - Ana (16:00)</div>
-                            }
-                            else if (i == 15)
-                            {
-                                <div class="event bg-orange">Fran - Lucía (11:00)</div>
-                            }
-                            else if (i == 20)
-                            {
-                                <div class="event bg-teal">Fran - Carlos (17:00)</div>
-                            }
-                            else if (i == 25)
-                            {
-                                <div class="event bg-pink">Fran - Sofía (15:00)</div>
-                            }
-                            else if (i == 30)
-                            {
-                                <div class="event bg-indigo">Fran - Luis (13:00)</div>
-                            }
-                        </div>
-                    }
+                    <div class="calendar-grid">
+                        @foreach (var day in CalendarDays)
+                        {
+                            <div class="calendar-day">
+                                @if (day.HasValue)
+                                {
+                                    <span class="date">@day.Value.Day</span>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -352,20 +328,30 @@
     private string saludo = "";
     private List<Usuario> usuarios = new();
     private int PacientesActivos => usuarios?.Count ?? 0;
+    private DateTime currentMonth = DateTime.Today;
+    private List<DateTime?> CalendarDays = new();
+    private string? userName;
 
     protected override async Task OnInitializedAsync()
     {
-        // Saludo dinámico
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
         var hora = DateTime.Now.Hour;
-        if (hora >= 6 && hora < 12)
-            saludo = "Buenos días";
-        else if (hora >= 12 && hora < 20)
-            saludo = "Buenas tardes";
-        else
-            saludo = "Buenas noches";
+        saludo = hora >= 6 && hora < 12 ? "Buenos días" :
+                 hora >= 12 && hora < 20 ? "Buenas tardes" : "Buenas noches";
 
-        // Cargar usuarios desde la base de datos
+        // Cargar usuarios
         await CargarUsuarios();
+
+        // Construir calendario inicial
+        BuildCalendar();
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+          
+            userName = user.Identity.Name;
+
+        }
     }
 
     private async Task CargarUsuarios()
@@ -373,4 +359,45 @@
         using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
         usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
     }
+
+    private void BuildCalendar()
+    {
+        var days = new List<DateTime?>();
+
+        int daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
+        int firstDayOfWeek = (int)new DateTime(currentMonth.Year, currentMonth.Month, 1).DayOfWeek;
+        int firstDayOffset = (firstDayOfWeek == 0 ? 6 : firstDayOfWeek - 1);
+
+        // Espacios vacíos antes del primer día
+        for (int i = 0; i < firstDayOffset; i++)
+            days.Add(null);
+
+        // Días del mes
+        for (int i = 1; i <= daysInMonth; i++)
+            days.Add(new DateTime(currentMonth.Year, currentMonth.Month, i));
+
+        // Asignar la lista para que Blazor detecte cambios
+        CalendarDays = days;
+    }
+
+    private void NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        BuildCalendar();
+        StateHasChanged(); 
+    }
+
+    private void PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        BuildCalendar();
+        StateHasChanged();
+    }
+
+    private string Capitalize(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        return char.ToUpper(text[0]) + text.Substring(1);
+    }
 }
+
