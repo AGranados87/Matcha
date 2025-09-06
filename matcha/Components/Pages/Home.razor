@@ -16,7 +16,7 @@
     <!-- Header -->
     <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
         <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
-        <h1 class="m-0">@saludo, Fran</h1>
+        <h1 class="m-0">@saludo, @(userName ?? "Álvaro")</h1>
     </header>
 
     <main class="p-4">
@@ -138,10 +138,11 @@
                     <div class="calendar-grid">
                         @foreach (var day in CalendarDays)
                         {
-                            <div class="calendar-day">
+                            <div class="calendar-day @(day.HasValue ? "has-date" : "empty-day") @(IsToday(day) ? "today" : "") @(IsWeekend(day) ? "weekend" : "")">
                                 @if (day.HasValue)
                                 {
                                     <span class="date">@day.Value.Day</span>
+                                    @* Aquí puedes agregar eventos/citas en el futuro *@
                                 }
                             </div>
                         }
@@ -215,7 +216,7 @@
     }
 
     main {
-        margin-top: 10px; 
+        margin-top: 10px;
     }
 
     .calendar-container {
@@ -230,7 +231,7 @@
         font-weight: 500;
         font-size: 0.85rem;
         margin-bottom: 10px;
-        color: #6b7280; 
+        color: #6b7280;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
@@ -241,7 +242,6 @@
         grid-template-columns: repeat(7, 1fr);
         gap: 8px;
     }
-
 
     /* Día */
     .calendar-day {
@@ -255,6 +255,7 @@
         font-size: 0.85rem;
         transition: all 0.2s ease-in-out;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        cursor: pointer;
     }
 
         .calendar-day:hover {
@@ -263,6 +264,36 @@
             transform: translateY(-2px);
         }
 
+        .calendar-day.empty-day {
+            background: #f8f9fa;
+            cursor: default;
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+            .calendar-day.today:hover {
+                background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                transform: translateY(-3px);
+            }
+
+        .calendar-day.weekend {
+            background: #f1f5f9;
+        }
+
+        .calendar-day.other-month {
+            background: #f8fafc;
+            opacity: 0.4;
+        }
+
+            .calendar-day.other-month .date {
+                color: #94a3b8;
+                font-weight: 400;
+            }
+
         .calendar-day .date {
             font-weight: 600;
             font-size: 0.9rem;
@@ -270,11 +301,15 @@
             margin-bottom: 4px;
         }
 
+        .calendar-day.today .date {
+            color: white;
+        }
+
     /* Evento estilo "pill" */
     .event {
         margin-top: 4px;
         padding: 4px 8px;
-        border-radius: 9999px; 
+        border-radius: 9999px;
         font-size: 0.75rem;
         font-weight: 500;
         color: white;
@@ -322,13 +357,26 @@
     .bg-indigo {
         background: #6366f1;
     }
+
+    /* Responsivo */
+    @@media (max-width: 768px) {
+        .calendar-day {
+            min-height: 80px;
+            padding: 4px;
+        }
+
+        .calendar-header {
+            font-size: 0.75rem;
+        }
+    }
 </style>
 
 @code {
     private string saludo = "";
     private List<Usuario> usuarios = new();
     private int PacientesActivos => usuarios?.Count ?? 0;
-    private DateTime currentMonth = DateTime.Today;
+    // Corregido: inicializar como primer día del mes
+    private DateTime currentMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     private List<DateTime?> CalendarDays = new();
     private string? userName;
 
@@ -348,24 +396,35 @@
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-          
             userName = user.Identity.Name;
-
         }
     }
 
     private async Task CargarUsuarios()
     {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
+        try
+        {
+            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+            usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
+        }
+        catch (Exception ex)
+        {
+            // Log del error si es necesario
+            Console.WriteLine($"Error cargando usuarios: {ex.Message}");
+            usuarios = new List<Usuario>();
+        }
     }
 
     private void BuildCalendar()
     {
         var days = new List<DateTime?>();
 
+        // Asegurar que trabajamos con el primer día del mes
+        var firstDay = new DateTime(currentMonth.Year, currentMonth.Month, 1);
         int daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
-        int firstDayOfWeek = (int)new DateTime(currentMonth.Year, currentMonth.Month, 1).DayOfWeek;
+
+        // Calcular offset para que la semana comience en lunes
+        int firstDayOfWeek = (int)firstDay.DayOfWeek;
         int firstDayOffset = (firstDayOfWeek == 0 ? 6 : firstDayOfWeek - 1);
 
         // Espacios vacíos antes del primer día
@@ -376,7 +435,7 @@
         for (int i = 1; i <= daysInMonth; i++)
             days.Add(new DateTime(currentMonth.Year, currentMonth.Month, i));
 
-        // Asignar la lista para que Blazor detecte cambios
+        // Asignar la lista
         CalendarDays = days;
     }
 
@@ -384,7 +443,7 @@
     {
         currentMonth = currentMonth.AddMonths(1);
         BuildCalendar();
-        StateHasChanged(); 
+        StateHasChanged();
     }
 
     private void PreviousMonth()
@@ -399,5 +458,16 @@
         if (string.IsNullOrEmpty(text)) return text;
         return char.ToUpper(text[0]) + text.Substring(1);
     }
-}
 
+    // Métodos helper para el calendario
+    private bool IsToday(DateTime? date)
+    {
+        return date.HasValue && date.Value.Date == DateTime.Today;
+    }
+
+    private bool IsWeekend(DateTime? date)
+    {
+        if (!date.HasValue) return false;
+        return date.Value.DayOfWeek == DayOfWeek.Saturday || date.Value.DayOfWeek == DayOfWeek.Sunday;
+    }
+}
