@@ -51,9 +51,9 @@
                 </button>
             </div>
 
-            <!-- Mini calendario -->
+            <!-- Mini calendario y citas -->
             <div class="col-md-6">
-                <div class="calendar p-3 border rounded">
+                <div class="calendar p-3 border rounded mb-3">
                     <h5>@currentMonth.ToString("MMMM yyyy")</h5>
                     <div class="d-flex justify-content-between mb-2">
                         <button class="btn btn-sm btn-outline-secondary" @onclick="PrevMonth">«</button>
@@ -62,7 +62,8 @@
                     <div class="calendar-grid">
                         @foreach (var day in CalendarDays)
                         {
-                            <div class="calendar-day @(day.HasValue ? "active" : "empty")">
+                            var tieneCita = MockCitas.Any(c => c.Fecha.Date == day?.Date);
+                            <div class="calendar-day @(day.HasValue ? "active" : "empty") @(tieneCita ? "has-cita" : "")">
                                 @if (day.HasValue)
                                 {
                                     <span>@day.Value.Day</span>
@@ -71,9 +72,38 @@
                         }
                     </div>
                 </div>
+
+                <h6>Próximas citas</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var c in MockCitas)
+                    {
+                        <div class="cita-card p-2 rounded text-white">
+                            <strong>@c.Fecha:HH:mm</strong><br />
+                            @c.Nombre
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </EditForm>
+
+
+<!-- Heatmap de citas al estilo GitHub -->
+<div class="mt-4">
+    <h6>Citas recientes (vista semanal)</h6>
+    <div class="d-flex flex-wrap" style="gap: 2px;">
+            @foreach (var week in Semanas)
+            {
+                <div class="d-flex flex-column" style="gap:2px;">
+                    @foreach (var day in week)
+                    {
+                        var citaCount = MockCitas.Count(c => c.Fecha.Date == day);
+                        <div class="heatday @(citaCount > 0 ? $"level-{Math.Min(citaCount, 4)}" : "")" title="@($"{day.ToShortDateString()} - {citaCount} cita(s)")"></div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 </div>
 
 <style>
@@ -99,6 +129,41 @@
 .calendar-day.empty {
     background: transparent;
 }
+
+    .has-cita {
+        background: #28a745 !important;
+        color: white;
+    }
+
+    .cita-card {
+        background-color: #28a745;
+        min-width: 80px;
+        text-align: center;
+        font-size: 0.8rem;
+    }
+
+    .heatday {
+        width: 12px;
+        height: 12px;
+        background: #ebedf0;
+        border-radius: 2px;
+    }
+
+    .level-1 {
+        background-color: #c6e48b;
+    }
+
+    .level-2 {
+        background-color: #7bc96f;
+    }
+
+    .level-3 {
+        background-color: #239a3b;
+    }
+
+    .level-4 {
+        background-color: #196127;
+    }
 </style>
 
 @code {
@@ -111,6 +176,8 @@
     protected override void OnInitialized()
     {
         GenerarCalendario(currentMonth);
+        GenerarCalendario(currentMonth);
+        GenerarHeatmap();
     }
 
     private void PrevMonth()
@@ -145,6 +212,14 @@
         Console.WriteLine($"Cita confirmada: {cita.Nombre} - {cita.Fecha} {cita.Hora}");
     }
 
+    // Mock de citas
+    private List<CitaModel> MockCitas = new List<CitaModel>
+    {
+        new() { Nombre = "Juan Pérez", Fecha = DateTime.Today.AddHours(10), Hora="10:00" },
+        new() { Nombre = "Ana López", Fecha = DateTime.Today.AddDays(1).AddHours(11), Hora="11:00" },
+        new() { Nombre = "Carlos Ruiz", Fecha = DateTime.Today.AddDays(2).AddHours(16), Hora="16:00" },
+    };
+
     public class CitaModel
     {
         [Required] public string Nombre { get; set; }
@@ -153,4 +228,22 @@
         [Required] public DateTime Fecha { get; set; }
         [Required] public string Hora { get; set; }
     }
+    // Generamos semanas para mostrar (ejemplo: últimas 4 semanas)
+    private List<List<DateTime>> Semanas = new();
+
+    private void GenerarHeatmap()
+    {
+        Semanas.Clear();
+        var start = DateTime.Today.AddDays(-28); // últimas 4 semanas
+        for (int w = 0; w < 4; w++)
+        {
+            var semana = new List<DateTime>();
+            for (int d = 0; d < 7; d++)
+            {
+                semana.Add(start.AddDays(w * 7 + d));
+            }
+            Semanas.Add(semana);
+        }
+    }
+
 }
