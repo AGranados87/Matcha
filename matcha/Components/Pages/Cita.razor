@@ -1,0 +1,156 @@
+﻿@page "/citas"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Agendar Cita</PageTitle>
+
+<div class="container-form shadow-sm p-4 rounded bg-white">
+    <h3 class="mb-4">
+        <span class="fas fa-calendar-check text-success me-2"></span>
+        Agendar Cita
+    </h3>
+
+    <EditForm Model="@cita" OnValidSubmit="ConfirmarCita">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label>Nombre completo</label>
+                    <InputText class="form-control" @bind-Value="cita.Nombre" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Email</label>
+                    <InputText class="form-control" @bind-Value="cita.Email" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Motivo de la cita</label>
+                    <InputTextArea class="form-control" @bind-Value="cita.Motivo" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Fecha</label>
+                    <InputDate class="form-control" @bind-Value="cita.Fecha" />
+                </div>
+
+                <div class="mb-3">
+                    <label>Hora disponible</label>
+                    <InputSelect class="form-select" @bind-Value="cita.Hora">
+                        <option value="">-- Selecciona hora --</option>
+                        @foreach (var hora in HorasDisponibles)
+                        {
+                            <option value="@hora">@hora</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <button class="btn btn-success w-100 mt-3" type="submit">
+                    Confirmar cita
+                </button>
+            </div>
+
+            <!-- Mini calendario -->
+            <div class="col-md-6">
+                <div class="calendar p-3 border rounded">
+                    <h5>@currentMonth.ToString("MMMM yyyy")</h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="PrevMonth">«</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="NextMonth">»</button>
+                    </div>
+                    <div class="calendar-grid">
+                        @foreach (var day in CalendarDays)
+                        {
+                            <div class="calendar-day @(day.HasValue ? "active" : "empty")">
+                                @if (day.HasValue)
+                                {
+                                    <span>@day.Value.Day</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+<style>
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.calendar-day {
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 6px;
+}
+.calendar-day.active {
+    background: #f8f9fa;
+    cursor: pointer;
+}
+.calendar-day.active:hover {
+    background: #d4edda;
+}
+.calendar-day.empty {
+    background: transparent;
+}
+</style>
+
+@code {
+    private CitaModel cita = new();
+    private List<string> HorasDisponibles = new() { "10:00", "11:00", "12:00", "16:00", "17:00" };
+
+    private DateTime currentMonth = DateTime.Today;
+    private List<DateTime?> CalendarDays = new();
+
+    protected override void OnInitialized()
+    {
+        GenerarCalendario(currentMonth);
+    }
+
+    private void PrevMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        GenerarCalendario(currentMonth);
+    }
+
+    private void NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        GenerarCalendario(currentMonth);
+    }
+
+    private void GenerarCalendario(DateTime mes)
+    {
+        CalendarDays.Clear();
+        var firstDay = new DateTime(mes.Year, mes.Month, 1);
+        var daysInMonth = DateTime.DaysInMonth(mes.Year, mes.Month);
+
+        // Rellenar huecos antes del primer día
+        int offset = (int)firstDay.DayOfWeek;
+        for (int i = 0; i < offset; i++) CalendarDays.Add(null);
+
+        for (int d = 1; d <= daysInMonth; d++)
+            CalendarDays.Add(new DateTime(mes.Year, mes.Month, d));
+    }
+
+    private void ConfirmarCita()
+    {
+        // Aquí podrías guardar en BD o enviar confirmación
+        Console.WriteLine($"Cita confirmada: {cita.Nombre} - {cita.Fecha} {cita.Hora}");
+    }
+
+    public class CitaModel
+    {
+        [Required] public string Nombre { get; set; }
+        [Required, EmailAddress] public string Email { get; set; }
+        public string Motivo { get; set; }
+        [Required] public DateTime Fecha { get; set; }
+        [Required] public string Hora { get; set; }
+    }
+}
