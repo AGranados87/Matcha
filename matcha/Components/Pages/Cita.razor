@@ -86,24 +86,6 @@
             </div>
         </div>
     </EditForm>
-
-
-<!-- Heatmap de citas al estilo GitHub -->
-<div class="mt-4">
-    <h6>Citas recientes (vista semanal)</h6>
-    <div class="d-flex flex-wrap" style="gap: 2px;">
-            @foreach (var week in Semanas)
-            {
-                <div class="d-flex flex-column" style="gap:2px;">
-                    @foreach (var day in week)
-                    {
-                        var citaCount = MockCitas.Count(c => c.Fecha.Date == day);
-                        <div class="heatday @(citaCount > 0 ? $"level-{Math.Min(citaCount, 4)}" : "")" title="@($"{day.ToShortDateString()} - {citaCount} cita(s)")"></div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
 </div>
 
 <style>
