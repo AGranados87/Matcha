@@ -72,17 +72,6 @@
                         }
                     </div>
                 </div>
-
-                <h6>Próximas citas</h6>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var c in MockCitas)
-                    {
-                        <div class="cita-card p-2 rounded text-white">
-                            <strong>@c.Fecha:HH:mm</strong><br />
-                            @c.Nombre
-                        </div>
-                    }
-                </div>
             </div>
         </div>
     </EditForm>
