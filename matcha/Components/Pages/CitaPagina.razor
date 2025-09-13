@@ -1,5 +1,6 @@
 ﻿@page "/citas"
-@using System.ComponentModel.DataAnnotations
+@using matcha.Modelo
+@inject matcha.Components.Services.CitasController CitasController
 
 <PageTitle>Agendar Cita</PageTitle>
 
@@ -15,26 +16,44 @@
 
         <div class="row">
             <div class="col-md-6">
+
+                <!-- Paciente -->
                 <div class="mb-3">
-                    <label>Nombre completo</label>
-                    <InputText class="form-control" @bind-Value="cita.Nombre" />
+                    <label>Paciente</label>
+                    <InputSelect TValue="int" class="form-select" @bind-Value="cita.PacienteID">
+                        <option value="">-- Selecciona paciente --</option>
+                        @foreach (var paciente in Pacientes)
+                        {
+                            <option value="@paciente.PacienteID">@paciente.Nombre</option>
+                        }
+                    </InputSelect>
                 </div>
 
+                <!-- Psicólogo -->
                 <div class="mb-3">
-                    <label>Email</label>
-                    <InputText class="form-control" @bind-Value="cita.Email" />
+                    <label>Psicólogo</label>
+                    <InputSelect TValue="int" class="form-select" @bind-Value="cita.EmpleadoID" @onchange="OnEmpleadoChanged">
+                        <option value="">-- Selecciona psicólogo --</option>
+                        @foreach (var emp in Empleados)
+                        {
+                            <option value="@emp.EmpleadoID">@emp.UserName (@emp.RolNombre)</option>
+                        }
+                    </InputSelect>
                 </div>
 
+                <!-- Motivo -->
                 <div class="mb-3">
                     <label>Motivo de la cita</label>
                     <InputTextArea class="form-control" @bind-Value="cita.Motivo" />
                 </div>
 
+                <!-- Fecha -->
                 <div class="mb-3">
                     <label>Fecha</label>
-                    <InputDate class="form-control" @bind-Value="cita.Fecha" />
+                    <InputDate TValue="DateTime" class="form-control" @bind-Value="cita.Fecha" />
                 </div>
 
+                <!-- Hora -->
                 <div class="mb-3">
                     <label>Hora disponible</label>
                     <InputSelect class="form-select" @bind-Value="cita.Hora">
@@ -51,7 +70,7 @@
                 </button>
             </div>
 
-            <!-- Mini calendario y citas -->
+            <!-- Calendario -->
             <div class="col-md-6">
                 <div class="calendar p-3 border rounded mb-3">
                     <h5>@currentMonth.ToString("MMMM yyyy")</h5>
@@ -62,7 +81,7 @@
                     <div class="calendar-grid">
                         @foreach (var day in CalendarDays)
                         {
-                            var tieneCita = MockCitas.Any(c => c.Fecha.Date == day?.Date);
+                            var tieneCita = CitasEmpleado.Any(c => c.Fecha.Date == day?.Date);
                             <div class="calendar-day @(day.HasValue ? "active" : "empty") @(tieneCita ? "has-cita" : "")">
                                 @if (day.HasValue)
                                 {
@@ -78,77 +97,70 @@
 </div>
 
 <style>
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-}
-.calendar-day {
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 6px;
-}
-.calendar-day.active {
-    background: #f8f9fa;
-    cursor: pointer;
-}
-.calendar-day.active:hover {
-    background: #d4edda;
-}
-.calendar-day.empty {
-    background: transparent;
-}
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .calendar-day {
+        height: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 6px;
+    }
+
+        .calendar-day.active {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+            .calendar-day.active:hover {
+                background: #d4edda;
+            }
+
+        .calendar-day.empty {
+            background: transparent;
+        }
 
     .has-cita {
         background: #28a745 !important;
         color: white;
     }
-
-    .cita-card {
-        background-color: #28a745;
-        min-width: 80px;
-        text-align: center;
-        font-size: 0.8rem;
-    }
-
-    .heatday {
-        width: 12px;
-        height: 12px;
-        background: #ebedf0;
-        border-radius: 2px;
-    }
-
-    .level-1 {
-        background-color: #c6e48b;
-    }
-
-    .level-2 {
-        background-color: #7bc96f;
-    }
-
-    .level-3 {
-        background-color: #239a3b;
-    }
-
-    .level-4 {
-        background-color: #196127;
-    }
 </style>
 
 @code {
-    private CitaModel cita = new();
+    private Cita cita = new();
+
+    private List<Usuario> Pacientes = new();
+    private List<Empleado> Empleados = new();
+    private List<Cita> CitasEmpleado = new();
+
     private List<string> HorasDisponibles = new() { "10:00", "11:00", "12:00", "16:00", "17:00" };
 
     private DateTime currentMonth = DateTime.Today;
     private List<DateTime?> CalendarDays = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        Pacientes = await CitasController.GetPacientesAsync();
+        Empleados = await CitasController.GetEmpleadosAsync();
         GenerarCalendario(currentMonth);
-        GenerarCalendario(currentMonth);
-        GenerarHeatmap();
+    }
+
+    private async Task OnEmpleadoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var empId))
+        {
+            CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(empId);
+        }
+        else
+        {
+            CitasEmpleado.Clear();
+        }
+
+        StateHasChanged();
     }
 
     private void PrevMonth()
@@ -169,7 +181,6 @@
         var firstDay = new DateTime(mes.Year, mes.Month, 1);
         var daysInMonth = DateTime.DaysInMonth(mes.Year, mes.Month);
 
-        // Rellenar huecos antes del primer día
         int offset = (int)firstDay.DayOfWeek;
         for (int i = 0; i < offset; i++) CalendarDays.Add(null);
 
@@ -177,44 +188,14 @@
             CalendarDays.Add(new DateTime(mes.Year, mes.Month, d));
     }
 
-    private void ConfirmarCita()
+    private async Task ConfirmarCita()
     {
-        // Aquí podrías guardar en BD o enviar confirmación
-        Console.WriteLine($"Cita confirmada: {cita.Nombre} - {cita.Fecha} {cita.Hora}");
-    }
+        await CitasController.InsertarCitaAsync(cita);
+        Console.WriteLine("✅ Cita guardada correctamente");
 
-    // Mock de citas
-    private List<CitaModel> MockCitas = new List<CitaModel>
-    {
-        new() { Nombre = "Juan Pérez", Fecha = DateTime.Today.AddHours(10), Hora="10:00" },
-        new() { Nombre = "Ana López", Fecha = DateTime.Today.AddDays(1).AddHours(11), Hora="11:00" },
-        new() { Nombre = "Carlos Ruiz", Fecha = DateTime.Today.AddDays(2).AddHours(16), Hora="16:00" },
-    };
-
-    public class CitaModel
-    {
-        [Required] public string Nombre { get; set; }
-        [Required, EmailAddress] public string Email { get; set; }
-        public string Motivo { get; set; }
-        [Required] public DateTime Fecha { get; set; }
-        [Required] public string Hora { get; set; }
-    }
-    // Generamos semanas para mostrar (ejemplo: últimas 4 semanas)
-    private List<List<DateTime>> Semanas = new();
-
-    private void GenerarHeatmap()
-    {
-        Semanas.Clear();
-        var start = DateTime.Today.AddDays(-28); // últimas 4 semanas
-        for (int w = 0; w < 4; w++)
+        if (cita.EmpleadoID > 0)
         {
-            var semana = new List<DateTime>();
-            for (int d = 0; d < 7; d++)
-            {
-                semana.Add(start.AddDays(w * 7 + d));
-            }
-            Semanas.Add(semana);
+            CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(cita.EmpleadoID);
         }
     }
-
 }

@@ -15,6 +15,12 @@ builder.Services.AddScoped(provider =>
     return new SqlConnection(connectionString);
 });
 
+builder.Services.AddScoped(sp =>
+    new matcha.Components.Services.CitasController(
+        builder.Configuration.GetConnectionString("SqlConnection")
+));
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
