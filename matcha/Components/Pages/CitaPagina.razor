@@ -10,7 +10,7 @@
         Agendar Cita
     </h3>
 
-    <EditForm Model="@cita" OnValidSubmit="ConfirmarCita">
+    <EditForm Model="@cita" OnValidSubmit="ConfirmarCita" FormName="CitaForm">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
@@ -63,6 +63,7 @@
                             <option value="@hora">@hora</option>
                         }
                     </InputSelect>
+                    <ValidationMessage For="@(() => cita.Hora)" />
                 </div>
 
                 <button class="btn btn-success w-100 mt-3" type="submit">
@@ -137,7 +138,7 @@
     private List<Empleado> Empleados = new();
     private List<Cita> CitasEmpleado = new();
 
-    private List<string> HorasDisponibles = new() { "10:00", "11:00", "12:00", "16:00", "17:00" };
+    private List<string> HorasDisponibles = new() { "09:00", "10:00", "11:00", "12:00", "16:00", "17:00" };
 
     private DateTime currentMonth = DateTime.Today;
     private List<DateTime?> CalendarDays = new();
@@ -147,6 +148,7 @@
         Pacientes = await CitasController.GetPacientesAsync();
         Empleados = await CitasController.GetEmpleadosAsync();
         GenerarCalendario(currentMonth);
+        cita.Fecha = DateTime.Today;
     }
 
     private async Task OnEmpleadoChanged(ChangeEventArgs e)

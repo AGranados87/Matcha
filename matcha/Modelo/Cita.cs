@@ -8,21 +8,18 @@ namespace matcha.Modelo
     {
         public int CitaID { get; set; }
 
-        [Required]
         public int PacienteID { get; set; }   // FK a Usuario
 
-        [Required]
         public int EmpleadoID { get; set; }   // FK a Empleado (psicólogo)
 
         [StringLength(500)]
         public string? Motivo { get; set; }
 
-        [Required]
         public DateTime Fecha { get; set; }
 
         [Required]
         [StringLength(10)]
-        public string Hora { get; set; } = string.Empty;
+        public string Hora { get; set; }
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
 
