@@ -24,15 +24,31 @@ namespace matcha.Components.Services
             return result.ToList();
         }
 
+        // --- Pacientes por psicologo ---
+        public async Task<List<Usuario>> GetPacientesPorPsicologoAsync(int empleadoId)
+        {
+            using var conn = new SqlConnection(_connectionString);
+
+            var sql = @"SELECT u.PacienteID, u.Nombre, u.Email, u.EmpleadoID,
+                       ISNULL(e.UserName, '') AS Psicologo
+                FROM Usuarios u
+                LEFT JOIN Empleados e ON u.EmpleadoID = e.EmpleadoID
+                WHERE u.EmpleadoID = @empleadoId
+                ORDER BY u.Nombre;";
+
+            var result = await conn.QueryAsync<Usuario>(sql, new { empleadoId });
+            return result.ToList();
+        }
+
         // --- Empleados (psicólogos) ---
         public async Task<List<Empleado>> GetEmpleadosAsync()
         {
             using var conn = new SqlConnection(_connectionString);
-            var sql = @"SELECT e.EmpleadoID, e.UserName, e.Email, e.PasswordHash, e.FechaCreacion, 
-                               e.Activo, e.RolID, r.Nombre AS RolNombre
-                        FROM Empleados e
-                        LEFT JOIN Roles r ON e.RolID = r.ID
-                        WHERE e.Activo = 1";
+            var sql = @"SELECT e.EmpleadoID, e.UserName, e.Email, e.RolID, r.Nombre AS RolNombre
+                FROM Empleados e
+                LEFT JOIN Roles r ON e.RolID = r.ID
+                WHERE e.Activo = 1
+                  AND e.RolID = 2";
             var result = await conn.QueryAsync<Empleado>(sql);
             return result.ToList();
         }

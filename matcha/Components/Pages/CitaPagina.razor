@@ -17,11 +17,26 @@
         <div class="row">
             <div class="col-md-6">
 
+                <!-- Psicólogo -->
+                <div class="mb-3">
+                    <label>Psicólogo</label>
+                    <InputSelect TValue="int" class="form-select"
+                                 @bind-Value="cita.EmpleadoID"
+                                 @onchange="OnEmpleadoChanged">
+                        <option value="0">-- Selecciona psicólogo --</option>
+                        @foreach (var emp in Empleados)
+                        {
+                            <option value="@emp.EmpleadoID">@emp.UserName (@emp.RolNombre)</option>
+                        }
+                    </InputSelect>
+                </div>
+
+
                 <!-- Paciente -->
                 <div class="mb-3">
                     <label>Paciente</label>
                     <InputSelect TValue="int" class="form-select" @bind-Value="cita.PacienteID">
-                        <option value="">-- Selecciona paciente --</option>
+                        <option value="0">-- Selecciona paciente --</option>
                         @foreach (var paciente in Pacientes)
                         {
                             <option value="@paciente.PacienteID">@paciente.Nombre</option>
@@ -29,17 +44,6 @@
                     </InputSelect>
                 </div>
 
-                <!-- Psicólogo -->
-                <div class="mb-3">
-                    <label>Psicólogo</label>
-                    <InputSelect TValue="int" class="form-select" @bind-Value="cita.EmpleadoID" @onchange="OnEmpleadoChanged">
-                        <option value="">-- Selecciona psicólogo --</option>
-                        @foreach (var emp in Empleados)
-                        {
-                            <option value="@emp.EmpleadoID">@emp.UserName (@emp.RolNombre)</option>
-                        }
-                    </InputSelect>
-                </div>
 
                 <!-- Motivo -->
                 <div class="mb-3">
@@ -145,25 +149,40 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Pacientes = await CitasController.GetPacientesAsync();
-        Empleados = await CitasController.GetEmpleadosAsync();
+        Empleados = await CitasController.GetEmpleadosAsync();  // solo psicólogos activos      
         GenerarCalendario(currentMonth);
         cita.Fecha = DateTime.Today;
     }
 
     private async Task OnEmpleadoChanged(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out var empId))
+        if (int.TryParse(e.Value?.ToString(), out var empId) && empId > 0)
         {
-            CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(empId);
+            Console.WriteLine($"➡️ Psicólogo seleccionado: {empId}");
+
+            var lista = await CitasController.GetPacientesPorPsicologoAsync(empId);
+            Console.WriteLine($"➡️ Pacientes devueltos desde controller: {lista.Count}");
+
+            Pacientes = lista;
+
+            var citas = await CitasController.GetCitasPorEmpleadoAsync(empId);
+            Console.WriteLine($"➡️ Citas devueltas desde controller: {citas.Count}");
+
+            CitasEmpleado = citas;
+
+            cita.EmpleadoID = empId;
+            cita.PacienteID = 0;
         }
         else
         {
+            Pacientes.Clear();
             CitasEmpleado.Clear();
+            cita.PacienteID = 0;
         }
 
         StateHasChanged();
     }
+
 
     private void PrevMonth()
     {
