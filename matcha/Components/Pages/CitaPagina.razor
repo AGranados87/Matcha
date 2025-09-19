@@ -20,9 +20,11 @@
                 <!-- Psicólogo -->
                 <div class="mb-3">
                     <label>Psicólogo</label>
-                    <InputSelect TValue="int" class="form-select"
-                                 @bind-Value="cita.EmpleadoID"
-                                 @onchange="OnEmpleadoChanged">
+                    <InputSelect TValue="int"
+                                 class="form-select"
+                                 Value="cita.EmpleadoID"
+                                 ValueChanged="OnEmpleadoChanged"
+                                 ValueExpression="() => cita.EmpleadoID">
                         <option value="0">-- Selecciona psicólogo --</option>
                         @foreach (var emp in Empleados)
                         {
@@ -31,15 +33,19 @@
                     </InputSelect>
                 </div>
 
-
-                <!-- Paciente -->
+                <!-- Paciente (filtrado por psicólogo; incluye no asignados) -->
                 <div class="mb-3">
                     <label>Paciente</label>
-                    <InputSelect TValue="int" class="form-select" @bind-Value="cita.PacienteID">
+                    <InputSelect TValue="int" class="form-select"
+                                 @bind-Value="cita.PacienteID"
+                                 disabled="@DisabledPacientesAttr">
                         <option value="0">-- Selecciona paciente --</option>
                         @foreach (var paciente in Pacientes)
                         {
-                            <option value="@paciente.PacienteID">@paciente.Nombre</option>
+                            var noAsignado = paciente.EmpleadoID is null;
+                            <option value="@paciente.PacienteID">
+                                @paciente.Nombre @(noAsignado ? " — (no asignado)" : "")
+                            </option>
                         }
                     </InputSelect>
                 </div>
@@ -54,23 +60,25 @@
                 <!-- Fecha -->
                 <div class="mb-3">
                     <label>Fecha</label>
-                    <InputDate TValue="DateTime" class="form-control" @bind-Value="cita.Fecha" />
+                    <InputDate TValue="DateTime" class="form-control"
+                               @bind-Value="cita.Fecha"
+                               @onchange="OnFechaChanged" />
                 </div>
 
                 <!-- Hora -->
                 <div class="mb-3">
                     <label>Hora disponible</label>
-                    <InputSelect class="form-select" @bind-Value="cita.Hora">
+                    <InputSelect class="form-select" @bind-Value="cita.Hora" disabled="@(cita.EmpleadoID == 0)">
                         <option value="">-- Selecciona hora --</option>
                         @foreach (var hora in HorasDisponibles)
                         {
                             <option value="@hora">@hora</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="@(() => cita.Hora)" />
                 </div>
 
-                <button class="btn btn-success w-100 mt-3" type="submit">
+                <button class="btn btn-success w-100 mt-3" type="submit"
+                        disabled="@(cita.EmpleadoID == 0 || cita.PacienteID == 0 || string.IsNullOrWhiteSpace(cita.Hora))">
                     Confirmar cita
                 </button>
             </div>
@@ -78,7 +86,7 @@
             <!-- Calendario -->
             <div class="col-md-6">
                 <div class="calendar p-3 border rounded mb-3">
-                    <h5>@currentMonth.ToString("MMMM yyyy")</h5>
+                    <h5 class="text-capitalize">@currentMonth.ToString("MMMM yyyy")</h5>
                     <div class="d-flex justify-content-between mb-2">
                         <button class="btn btn-sm btn-outline-secondary" @onclick="PrevMonth">«</button>
                         <button class="btn btn-sm btn-outline-secondary" @onclick="NextMonth">»</button>
@@ -86,8 +94,12 @@
                     <div class="calendar-grid">
                         @foreach (var day in CalendarDays)
                         {
-                            var tieneCita = CitasEmpleado.Any(c => c.Fecha.Date == day?.Date);
-                            <div class="calendar-day @(day.HasValue ? "active" : "empty") @(tieneCita ? "has-cita" : "")">
+                            var esHoy = day.HasValue && day.Value.Date == DateTime.Today.Date;
+                            var esSeleccionado = day.HasValue && day.Value.Date == cita.Fecha.Date;
+                            var tieneCita = day.HasValue && CitasEmpleado.Any(c => c.Fecha.Date == day.Value.Date);
+
+                            <div class="calendar-day @(day.HasValue ? "active" : "empty") @(tieneCita ? "has-cita" : "") @(esSeleccionado ? "selected" : "") @(esHoy ? "today" : "")"
+                                 @onclick="@(day.HasValue ? (() => SeleccionarDia(day.Value)) : null)">
                                 @if (day.HasValue)
                                 {
                                     <span>@day.Value.Day</span>
@@ -96,6 +108,9 @@
                         }
                     </div>
                 </div>
+                <small class="text-muted">
+                    <span class="badge bg-success me-1">&nbsp;</span> día con citas del psicólogo seleccionado
+                </small>
             </div>
         </div>
     </EditForm>
@@ -114,11 +129,13 @@
         justify-content: center;
         align-items: center;
         border-radius: 6px;
+        user-select: none;
     }
 
         .calendar-day.active {
             background: #f8f9fa;
             cursor: pointer;
+            transition: background .15s ease-in-out;
         }
 
             .calendar-day.active:hover {
@@ -129,6 +146,15 @@
             background: transparent;
         }
 
+        .calendar-day.selected {
+            outline: 2px solid #198754;
+            font-weight: 600;
+        }
+
+        .calendar-day.today span {
+            text-decoration: underline;
+        }
+
     .has-cita {
         background: #28a745 !important;
         color: white;
@@ -136,53 +162,70 @@
 </style>
 
 @code {
-    private Cita cita = new();
+    private Cita cita = new() { Fecha = DateTime.Today, Hora = "" };
+    private string? DisabledPacientesAttr => (cita.EmpleadoID == 0) ? "disabled" : null;
 
     private List<Usuario> Pacientes = new();
     private List<Empleado> Empleados = new();
     private List<Cita> CitasEmpleado = new();
 
-    private List<string> HorasDisponibles = new() { "09:00", "10:00", "11:00", "12:00", "16:00", "17:00" };
+    private readonly List<string> TodasLasHoras = new() { "09:00", "10:00", "11:00", "12:00", "16:00", "17:00" };
+    private List<string> HorasDisponibles = new();
 
     private DateTime currentMonth = DateTime.Today;
     private List<DateTime?> CalendarDays = new();
 
     protected override async Task OnInitializedAsync()
     {
-        Empleados = await CitasController.GetEmpleadosAsync();  // solo psicólogos activos      
+        Empleados = await CitasController.GetEmpleadosAsync();
         GenerarCalendario(currentMonth);
-        cita.Fecha = DateTime.Today;
+        RecalcularHorasDisponibles();
     }
 
-    private async Task OnEmpleadoChanged(ChangeEventArgs e)
+    // AHORA: handler tipado (no ChangeEventArgs) – se dispara siempre al cambiar el psicólogo
+    private async Task OnEmpleadoChanged(int empId)
     {
-        if (int.TryParse(e.Value?.ToString(), out var empId) && empId > 0)
+        cita.EmpleadoID = empId;
+
+        if (empId > 0)
         {
-            Console.WriteLine($"➡️ Psicólogo seleccionado: {empId}");
+            // Pacientes asignados + no asignados (ordenados)
+            Pacientes = await CitasController.GetPacientesPorPsicologoAsync(empId);
 
-            var lista = await CitasController.GetPacientesPorPsicologoAsync(empId);
-            Console.WriteLine($"➡️ Pacientes devueltos desde controller: {lista.Count}");
+            // Citas del psicólogo para el calendario y las horas
+            CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(empId);
 
-            Pacientes = lista;
-
-            var citas = await CitasController.GetCitasPorEmpleadoAsync(empId);
-            Console.WriteLine($"➡️ Citas devueltas desde controller: {citas.Count}");
-
-            CitasEmpleado = citas;
-
-            cita.EmpleadoID = empId;
+            // Reset
             cita.PacienteID = 0;
+            cita.Hora = "";
         }
         else
         {
             Pacientes.Clear();
             CitasEmpleado.Clear();
             cita.PacienteID = 0;
+            cita.Hora = "";
         }
 
+        RecalcularHorasDisponibles();
         StateHasChanged();
     }
 
+    private Task OnFechaChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e?.Value?.ToString(), out var f))
+        {
+            cita.Fecha = f.Date;
+            RecalcularHorasDisponibles();
+        }
+        return Task.CompletedTask;
+    }
+
+    private void SeleccionarDia(DateTime dia)
+    {
+        cita.Fecha = dia.Date;
+        RecalcularHorasDisponibles();
+    }
 
     private void PrevMonth()
     {
@@ -196,27 +239,45 @@
         GenerarCalendario(currentMonth);
     }
 
+    // Semana empieza en LUNES
     private void GenerarCalendario(DateTime mes)
     {
         CalendarDays.Clear();
         var firstDay = new DateTime(mes.Year, mes.Month, 1);
         var daysInMonth = DateTime.DaysInMonth(mes.Year, mes.Month);
 
-        int offset = (int)firstDay.DayOfWeek;
+        int offset = ((int)firstDay.DayOfWeek + 6) % 7; // lunes=0 ... domingo=6
         for (int i = 0; i < offset; i++) CalendarDays.Add(null);
+        for (int d = 1; d <= daysInMonth; d++) CalendarDays.Add(new DateTime(mes.Year, mes.Month, d));
+    }
 
-        for (int d = 1; d <= daysInMonth; d++)
-            CalendarDays.Add(new DateTime(mes.Year, mes.Month, d));
+    private void RecalcularHorasDisponibles()
+    {
+        HorasDisponibles = new List<string>(TodasLasHoras);
+
+        if (cita.EmpleadoID > 0 && CitasEmpleado.Count > 0)
+        {
+            var ocupadas = CitasEmpleado
+                .Where(c => c.Fecha.Date == cita.Fecha.Date)
+                .Select(c => c.Hora)
+                .Where(h => !string.IsNullOrWhiteSpace(h))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            HorasDisponibles.RemoveAll(h => ocupadas.Contains(h));
+        }
+
+        if (!HorasDisponibles.Contains(cita.Hora))
+            cita.Hora = "";
     }
 
     private async Task ConfirmarCita()
     {
         await CitasController.InsertarCitaAsync(cita);
-        Console.WriteLine("✅ Cita guardada correctamente");
 
         if (cita.EmpleadoID > 0)
         {
             CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(cita.EmpleadoID);
+            RecalcularHorasDisponibles();
         }
     }
 }
