@@ -1,5 +1,6 @@
 ﻿@page "/citas"
 @using matcha.Modelo
+@using Microsoft.AspNetCore.Components.Forms
 @inject matcha.Components.Services.CitasController CitasController
 
 <PageTitle>Agendar Cita</PageTitle>
@@ -20,11 +21,12 @@
                 <!-- Psicólogo -->
                 <div class="mb-3">
                     <label>Psicólogo</label>
+                    <!-- Patrón estable: Value/ValueChanged (sin @bind ni @onchange) -->
                     <InputSelect TValue="int"
                                  class="form-select"
                                  Value="cita.EmpleadoID"
                                  ValueChanged="OnEmpleadoChanged"
-                                 ValueExpression="() => cita.EmpleadoID">
+                                 ValueExpression="@(() => cita.EmpleadoID)">
                         <option value="0">-- Selecciona psicólogo --</option>
                         @foreach (var emp in Empleados)
                         {
@@ -36,9 +38,11 @@
                 <!-- Paciente (filtrado por psicólogo; incluye no asignados) -->
                 <div class="mb-3">
                     <label>Paciente</label>
-                    <InputSelect TValue="int" class="form-select"
+                    <InputSelect @key="cita.EmpleadoID"
+                                 TValue="int"
+                                 class="form-select"
                                  @bind-Value="cita.PacienteID"
-                                 disabled="@DisabledPacientesAttr">
+                                 disabled="@( !PacientesHabilitados )">
                         <option value="0">-- Selecciona paciente --</option>
                         @foreach (var paciente in Pacientes)
                         {
@@ -50,7 +54,6 @@
                     </InputSelect>
                 </div>
 
-
                 <!-- Motivo -->
                 <div class="mb-3">
                     <label>Motivo de la cita</label>
@@ -60,7 +63,8 @@
                 <!-- Fecha -->
                 <div class="mb-3">
                     <label>Fecha</label>
-                    <InputDate TValue="DateTime" class="form-control"
+                    <InputDate TValue="DateTime"
+                               class="form-control"
                                @bind-Value="cita.Fecha"
                                @onchange="OnFechaChanged" />
                 </div>
@@ -68,7 +72,9 @@
                 <!-- Hora -->
                 <div class="mb-3">
                     <label>Hora disponible</label>
-                    <InputSelect class="form-select" @bind-Value="cita.Hora" disabled="@(cita.EmpleadoID == 0)">
+                    <InputSelect class="form-select"
+                                 @bind-Value="cita.Hora"
+                                 disabled="@(cita.EmpleadoID <= 0)">
                         <option value="">-- Selecciona hora --</option>
                         @foreach (var hora in HorasDisponibles)
                         {
@@ -78,9 +84,14 @@
                 </div>
 
                 <button class="btn btn-success w-100 mt-3" type="submit"
-                        disabled="@(cita.EmpleadoID == 0 || cita.PacienteID == 0 || string.IsNullOrWhiteSpace(cita.Hora))">
+                        disabled="@(cita.EmpleadoID <= 0 || cita.PacienteID == 0 || string.IsNullOrWhiteSpace(cita.Hora))">
                     Confirmar cita
                 </button>
+
+                @* DEBUG rápido (opcional):
+                <small class="text-muted d-block mt-2">
+                    EmpleadoID: @cita.EmpleadoID · Pacientes: @Pacientes.Count · Cargando: @cargandoPacientes
+                </small>*@
             </div>
 
             <!-- Calendario -->
@@ -163,7 +174,6 @@
 
 @code {
     private Cita cita = new() { Fecha = DateTime.Today, Hora = "" };
-    private string? DisabledPacientesAttr => (cita.EmpleadoID == 0) ? "disabled" : null;
 
     private List<Usuario> Pacientes = new();
     private List<Empleado> Empleados = new();
@@ -175,27 +185,29 @@
     private DateTime currentMonth = DateTime.Today;
     private List<DateTime?> CalendarDays = new();
 
+    private bool cargandoPacientes = false;
+    private bool PacientesHabilitados => cita.EmpleadoID > 0 && !cargandoPacientes;
+
     protected override async Task OnInitializedAsync()
     {
         Empleados = await CitasController.GetEmpleadosAsync();
+        Pacientes = await CitasController.GetPacientesAsync();
         GenerarCalendario(currentMonth);
         RecalcularHorasDisponibles();
     }
 
-    // AHORA: handler tipado (no ChangeEventArgs) – se dispara siempre al cambiar el psicólogo
+    // Cambio de psicólogo (handler tipado: int)
     private async Task OnEmpleadoChanged(int empId)
     {
+        cargandoPacientes = true;
         cita.EmpleadoID = empId;
 
         if (empId > 0)
         {
-            // Pacientes asignados + no asignados (ordenados)
             Pacientes = await CitasController.GetPacientesPorPsicologoAsync(empId);
-
-            // Citas del psicólogo para el calendario y las horas
             CitasEmpleado = await CitasController.GetCitasPorEmpleadoAsync(empId);
 
-            // Reset
+            // Reset dependientes
             cita.PacienteID = 0;
             cita.Hora = "";
         }
@@ -208,6 +220,7 @@
         }
 
         RecalcularHorasDisponibles();
+        cargandoPacientes = false;
         StateHasChanged();
     }
 

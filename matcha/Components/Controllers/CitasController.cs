@@ -10,86 +10,88 @@ namespace matcha.Components.Services
 
         public CitasController(string connectionString)
         {
-            _connectionString = connectionString;
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
         }
 
-       
         public async Task<List<Empleado>> GetEmpleadosAsync()
         {
             using var conn = new SqlConnection(_connectionString);
             var sql = @"
-SELECT e.EmpleadoID, e.UserName, e.Email, e.RolID, r.Nombre AS RolNombre
-FROM Empleados e
-LEFT JOIN Roles r ON e.RolID = r.ID
-WHERE e.Activo = 1 AND e.RolID = 2
-ORDER BY e.UserName;";
+                SELECT e.EmpleadoID, e.UserName, e.Email, e.RolID, r.Nombre AS RolNombre
+                FROM Empleados e
+                LEFT JOIN Roles r ON e.RolID = r.ID
+                WHERE e.Activo = 1 AND e.RolID = 2
+                ORDER BY e.UserName;";
             var result = await conn.QueryAsync<Empleado>(sql);
             return result.ToList();
         }
 
-        
+        // Pacientes del psicólogo + no asignados, ordenados dejando primero los del psicólogo
         public async Task<List<Usuario>> GetPacientesPorPsicologoAsync(int empleadoId)
         {
             using var conn = new SqlConnection(_connectionString);
             var sql = @"
-SELECT u.PacienteID, u.Nombre, u.Email, u.EmpleadoID
-FROM Usuarios u
-WHERE u.EmpleadoID = @empleadoId
-   OR u.EmpleadoID IS NULL
-ORDER BY CASE WHEN u.EmpleadoID = @empleadoId THEN 0 ELSE 1 END, u.Nombre;";
+                SELECT u.PacienteID, u.Nombre, u.Email, u.EmpleadoID
+                FROM Usuarios u
+                WHERE u.EmpleadoID = @empleadoId
+                   OR u.EmpleadoID IS NULL
+                ORDER BY CASE WHEN u.EmpleadoID = @empleadoId THEN 0 ELSE 1 END, u.Nombre;";
             var result = await conn.QueryAsync<Usuario>(sql, new { empleadoId });
             return result.ToList();
         }
 
-      
+        // (Opcional) Todos los pacientes
         public async Task<List<Usuario>> GetPacientesAsync()
         {
             using var conn = new SqlConnection(_connectionString);
             var sql = @"
-SELECT u.PacienteID, u.Nombre, u.Email, u.EmpleadoID,
-       ISNULL(e.UserName,'') AS Psicologo
-FROM Usuarios u
-LEFT JOIN Empleados e ON u.EmpleadoID = e.EmpleadoID
-ORDER BY u.Nombre;";
+                SELECT u.PacienteID, u.Nombre, u.Email, u.EmpleadoID,
+                       ISNULL(e.UserName,'') AS Psicologo
+                FROM Usuarios u
+                LEFT JOIN Empleados e ON u.EmpleadoID = e.EmpleadoID
+                ORDER BY u.Nombre;";
             var result = await conn.QueryAsync<Usuario>(sql);
             return result.ToList();
         }
 
-      
+        // Citas de un psicólogo
         public async Task<List<Cita>> GetCitasPorEmpleadoAsync(int empleadoId)
         {
             using var conn = new SqlConnection(_connectionString);
             var result = await conn.QueryAsync<Cita>(@"
-SELECT CitaID, PacienteID, EmpleadoID, Motivo, Fecha, Hora, FechaCreacion
-FROM Citas
-WHERE EmpleadoID = @empleadoId
-ORDER BY Fecha, Hora;", new { empleadoId });
-            return result.ToList();
+            SELECT CitaID, PacienteID, EmpleadoID, Motivo, Fecha, Hora, FechaCreacion
+            FROM Citas
+            WHERE EmpleadoID = @empleadoId
+            ORDER BY Fecha, Hora;", new { empleadoId });
+                        return result.ToList();
         }
 
+        // Inserta cita con control anti-solape HH:mm
         public async Task InsertarCitaAsync(Cita cita)
         {
+            ArgumentNullException.ThrowIfNull(cita);
+
             using var conn = new SqlConnection(_connectionString);
 
             // Normaliza hora "HH:mm"
             var hora = (cita.Hora ?? "").Trim();
             if (hora.Length >= 5) hora = hora[..5];
 
-            // Check anti-solape
+            // Anti-solape
             var existe = await conn.ExecuteScalarAsync<int>(@"
-SELECT COUNT(1)
-FROM Citas
-WHERE EmpleadoID = @EmpleadoID
-  AND Fecha = @Fecha
-  AND Hora = @Hora;",
+                SELECT COUNT(1)
+                FROM Citas
+                WHERE EmpleadoID = @EmpleadoID
+                  AND CAST(Fecha AS date) = @Fecha
+                  AND Hora = @Hora;",
                 new { cita.EmpleadoID, Fecha = cita.Fecha.Date, Hora = hora });
 
             if (existe > 0)
                 throw new InvalidOperationException("Ese horario ya está ocupado para este psicólogo.");
 
             await conn.ExecuteAsync(@"
-INSERT INTO Citas (PacienteID, EmpleadoID, Motivo, Fecha, Hora)
-VALUES (@PacienteID, @EmpleadoID, @Motivo, @Fecha, @Hora);",
+                INSERT INTO Citas (PacienteID, EmpleadoID, Motivo, Fecha, Hora)
+                VALUES (@PacienteID, @EmpleadoID, @Motivo, @Fecha, @Hora);",
                 new
                 {
                     cita.PacienteID,
