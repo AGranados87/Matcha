@@ -1,5 +1,6 @@
 ﻿@page "/"
 @inject IConfiguration Config
+@inject DialogService DialogService
 
 @using Dapper
 @using Microsoft.AspNetCore.Components.Authorization
@@ -98,54 +99,67 @@
             </div>
         </div>
 
-        <!-- Calendario Radzen Scheduler -->
+        <!-- Calendario Radzen Scheduler CORREGIDO -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <span class="fas fa-calendar me-2"></span>
-                    Calendario de Citas
+                    Calendario de Citas - @currentDate.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))
                 </h5>
-                <div>
+                <div class="d-flex align-items-center">
+                    <!-- Selector de vista -->
+                    <div class="btn-group me-3" role="group">
+                        <button type="button" class="btn btn-sm @(currentView == "month" ? "btn-primary" : "btn-outline-secondary")"
+                                @onclick='@(() => ChangeView("month"))'>
+                                Mes
+                        </button>
+                        <button type="button" class="btn btn-sm @(currentView == "week" ? "btn-primary" : "btn-outline-secondary")"
+                                @onclick='@(() => ChangeView("week"))'>
+                            Semana
+                        </button>
+                        <button type="button" class="btn btn-sm @(currentView == "day" ? "btn-primary" : "btn-outline-secondary")"
+                                @onclick='@(() => ChangeView("day"))'>
+                            Día
+                        </button>
+                    </div>
+
+                    <!-- Navegación -->
                     <button class="btn btn-sm btn-outline-secondary me-2" @onclick="GoToPrev">
-                        <i class="fas fa-chevron-left"></i> Anterior
+                        <i class="fas fa-chevron-left"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-secondary me-2" @onclick="GoToToday">
                         Hoy
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="GoToNext">
-                        Siguiente <i class="fas fa-chevron-right"></i>
+                        <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
-            <div class="card-body">
-                <RadzenScheduler @ref="scheduler" Data="@appointments" TItem="AppointmentData"
-                                 StartProperty="Start" EndProperty="End" TextProperty="Text"
-                                 StartTime="@DateTime.Today.AddHours(8)" EndTime="@DateTime.Today.AddHours(20)"
-                                 CurrentDate="@currentDate" SlotDuration="30" Height="600">
-
-                    <ChildContent>
-                        <RadzenMonthView Text="Mes" />
-                        <RadzenWeekView Text="Semana" />
-                        <RadzenDayView Text="Día" />
-                    </ChildContent>
-
-                    <Template Context="data">
-                        @{
-                            var appointment = data as AppointmentData;
-                            <div class="scheduler-appointment @GetAppointmentClass(appointment)">
-                                <div class="appointment-content">
-                                    <strong>@appointment.Text</strong>
-                                    <div class="appointment-time">
-                                        @appointment.Start.ToString("HH:mm") - @appointment.End.ToString("HH:mm")
-                                    </div>
-                                    <div class="appointment-patient">
-                                        @appointment.PatientName
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </Template>
-                </RadzenScheduler>
+            <div class="card-body p-0 calendar-container">
+                @if (currentView == "month")
+                {
+                    <RadzenScheduler @ref="scheduler" Data="@appointments" TItem="AppointmentData"
+                                     StartProperty="Start" EndProperty="End" TextProperty="Text"
+                                     CurrentDate="@currentDate" Height="600" Style="width: 100%;">
+                        <RadzenMonthView />
+                    </RadzenScheduler>
+                }
+                else if (currentView == "week")
+                {
+                    <RadzenScheduler @ref="scheduler" Data="@appointments" TItem="AppointmentData"
+                                     StartProperty="Start" EndProperty="End" TextProperty="Text"
+                                     CurrentDate="@currentDate" Height="600" Style="width: 100%;">
+                        <RadzenWeekView />
+                    </RadzenScheduler>
+                }
+                else if (currentView == "day")
+                {
+                    <RadzenScheduler @ref="scheduler" Data="@appointments" TItem="AppointmentData"
+                                     StartProperty="Start" EndProperty="End" TextProperty="Text"
+                                     CurrentDate="@currentDate" Height="600" Style="width: 100%;">
+                        <RadzenDayView />
+                    </RadzenScheduler>
+                }
             </div>
         </div>
     </main>
@@ -159,22 +173,11 @@
         min-height: 100vh;
     }
 
-    /* Header fijo */
-    .dashboard-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 60px;
+    /* Header */
+    #main-header {
         background-color: #ffffff;
-        z-index: 1020;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-
-        .dashboard-header h1 {
-            font-size: 1.75rem;
-            font-weight: 600;
-        }
 
     /* Tarjetas dashboard */
     .card-dashboard {
@@ -216,93 +219,155 @@
         margin-top: 10px;
     }
 
-    /* Estilos para el Radzen Scheduler */
-    .scheduler-appointment {
-        border-radius: 6px;
-        padding: 4px 6px;
-        margin: 1px;
-        font-size: 0.75rem;
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border-left: 4px solid;
+    /* Contenedor del calendario - ESTILOS CRÍTICOS */
+    .calendar-container {
+        min-height: 700px;
+        position: relative;
+        z-index: 1;
     }
 
-    .scheduler-appointment:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    /* Override de estilos de Radzen Scheduler */
+    .rz-scheduler {
+        border: none !important;
+        min-height: 600px !important;
+        font-size: 14px !important;
     }
 
-    .appointment-content {
-        line-height: 1.2;
+    .rz-scheduler-month-view {
+        min-height: 500px !important;
     }
 
-    .appointment-time {
-        font-size: 0.65rem;
-        opacity: 0.9;
-        margin-top: 2px;
+        .rz-scheduler-month-view .rz-scheduler-date {
+            min-height: 120px !important;
+            height: 120px !important;
+            border: 1px solid #e5e7eb !important;
+            padding: 4px !important;
+            vertical-align: top !important;
+        }
+
+        .rz-scheduler-month-view .rz-scheduler-date-content {
+            min-height: 110px !important;
+            height: 110px !important;
+        }
+
+    /* Citas del calendario - más grandes y visibles */
+    .rz-scheduler-appointment {
+        border-radius: 6px !important;
+        padding: 8px 10px !important;
+        margin: 3px 2px !important;
+        font-size: 0.85rem !important;
+        line-height: 1.3 !important;
+        min-height: auto !important;
+        border-left: 4px solid !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        white-space: normal !important;
+        overflow: hidden !important;
     }
 
-    .appointment-patient {
-        font-size: 0.7rem;
-        opacity: 0.8;
-        margin-top: 2px;
+    .rz-scheduler-appointment-text {
+        font-weight: 600 !important;
+        white-space: normal !important;
+        line-height: 1.3 !important;
+        font-size: 0.85rem !important;
     }
 
-    /* Colores para diferentes tipos de citas */
+    /* Colores personalizados para tipos de citas */
     .appointment-individual {
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        border-left-color: #1e40af;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+        border-left-color: #1e40af !important;
+        color: white !important;
     }
 
     .appointment-group {
-        background: linear-gradient(135deg, #10b981, #047857);
-        border-left-color: #065f46;
+        background: linear-gradient(135deg, #10b981, #047857) !important;
+        border-left-color: #065f46 !important;
+        color: white !important;
     }
 
     .appointment-evaluation {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        border-left-color: #b45309;
+        background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+        border-left-color: #b45309 !important;
+        color: white !important;
     }
 
-    .appointment-default {
-        background: linear-gradient(135deg, #6b7280, #4b5563);
-        border-left-color: #374151;
-    }
-
-    /* Personalización del Radzen Scheduler */
-    .rz-scheduler {
-        border: none !important;
-    }
-
+    /* Header del scheduler */
     .rz-scheduler-header {
         background-color: #f8fafc !important;
         border-bottom: 1px solid #e2e8f0 !important;
+        padding: 1rem !important;
+        min-height: 60px !important;
     }
 
-    .rz-scheduler-month-view .rz-scheduler-date {
-        border-color: #e2e8f0 !important;
+    .rz-scheduler-navigation {
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
     }
 
+    /* Día actual destacado */
     .rz-scheduler-today {
         background-color: #dbeafe !important;
+        font-weight: bold !important;
+    }
+
+        .rz-scheduler-today .rz-scheduler-date-number {
+            color: #1d4ed8 !important;
+            font-weight: bold !important;
+        }
+
+    /* Botones de navegación personalizados */
+    .btn-group .btn {
+        border-radius: 6px !important;
+        margin: 0 2px !important;
     }
 
     /* Responsivo */
     @@media (max-width: 768px) {
-        .scheduler-appointment {
-            font-size: 0.7rem;
-            padding: 2px 4px;
+        .calendar-container {
+            min-height: 500px;
         }
-        
-        .appointment-time,
-        .appointment-patient {
-            display: none;
-        }
-        
+
         .rz-scheduler {
-            height: 400px !important;
+            min-height: 400px !important;
+            font-size: 12px !important;
         }
+
+        .rz-scheduler-month-view .rz-scheduler-date {
+            min-height: 80px !important;
+            height: 80px !important;
+        }
+
+        .rz-scheduler-appointment {
+            font-size: 0.7rem !important;
+            padding: 4px 6px !important;
+        }
+
+        .rz-scheduler-header {
+            padding: 0.5rem !important;
+            min-height: 50px !important;
+        }
+
+        .btn-group {
+            margin-bottom: 10px;
+        }
+
+        .card-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+
+            .card-header .d-flex > div {
+                margin-top: 10px;
+            }
+    }
+
+    /* Asegurar que el calendario tenga suficiente espacio */
+    .card-body.p-0 {
+        overflow: visible !important;
+    }
+
+    /* Espaciado entre secciones */
+    .card.shadow-sm.mb-4 {
+        margin-bottom: 2rem !important;
     }
 </style>
 
@@ -311,7 +376,7 @@
     private List<Usuario> usuarios = new();
     private int PacientesActivos => usuarios?.Count ?? 0;
     private string? userName;
-    
+
     // Variables para el Radzen Scheduler
     private RadzenScheduler<AppointmentData> scheduler;
     private List<AppointmentData> appointments = new();
@@ -319,6 +384,7 @@
     private int citasHoy = 0;
     private int citasPendientes = 0;
     private DateTime currentDate = DateTime.Today;
+    private string currentView = "month"; // "month", "week", "day"
 
     // Clase para las citas
     public class AppointmentData
@@ -370,50 +436,47 @@
     {
         try
         {
-            // Aquí puedes cargar las citas reales desde tu base de datos
-            // Por ahora, usamos datos de ejemplo
-            
             appointments = new List<AppointmentData>
             {
-                new AppointmentData 
-                { 
-                    Start = DateTime.Today.AddHours(10), 
+                new AppointmentData
+                {
+                    Start = DateTime.Today.AddHours(10),
                     End = DateTime.Today.AddHours(11),
                     Text = "Consulta Individual",
                     PatientName = "Juan Pérez",
                     PsychologistName = "Dra. López",
                     AppointmentType = "Individual"
                 },
-                new AppointmentData 
-                { 
-                    Start = DateTime.Today.AddHours(11), 
+                new AppointmentData
+                {
+                    Start = DateTime.Today.AddHours(11),
                     End = DateTime.Today.AddHours(12),
                     Text = "Terapia de Grupo",
                     PatientName = "María Sánchez",
                     PsychologistName = "Dr. Ruiz",
                     AppointmentType = "Grupo"
                 },
-                new AppointmentData 
-                { 
-                    Start = DateTime.Today.AddHours(15), 
+                new AppointmentData
+                {
+                    Start = DateTime.Today.AddHours(15),
                     End = DateTime.Today.AddHours(16),
                     Text = "Sesión Evaluación",
                     PatientName = "Carlos Fernández",
                     PsychologistName = "Dra. López",
                     AppointmentType = "Evaluación"
                 },
-                new AppointmentData 
-                { 
-                    Start = DateTime.Today.AddDays(1).AddHours(9), 
+                new AppointmentData
+                {
+                    Start = DateTime.Today.AddDays(1).AddHours(9),
                     End = DateTime.Today.AddDays(1).AddHours(10),
                     Text = "Seguimiento",
                     PatientName = "Ana García",
                     PsychologistName = "Dr. Ruiz",
                     AppointmentType = "Individual"
                 },
-                new AppointmentData 
-                { 
-                    Start = DateTime.Today.AddDays(2).AddHours(14), 
+                new AppointmentData
+                {
+                    Start = DateTime.Today.AddDays(2).AddHours(14),
                     End = DateTime.Today.AddDays(2).AddHours(15),
                     Text = "Consulta Urgente",
                     PatientName = "Luis Martínez",
@@ -429,31 +492,34 @@
             proximasCitas = appointments.Where(a => a.Start >= DateTime.Today)
                                        .OrderBy(a => a.Start)
                                        .ToList();
+
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error cargando citas: {ex.Message}");
-            // En caso de error, inicializar listas vacías
             appointments = new List<AppointmentData>();
             proximasCitas = new List<AppointmentData>();
         }
     }
 
-    private string GetAppointmentClass(AppointmentData appointment)
+    // Cambiar vista del calendario
+    private void ChangeView(string view)
     {
-        return appointment.AppointmentType switch
-        {
-            "Individual" => "appointment-individual",
-            "Grupo" => "appointment-group",
-            "Evaluación" => "appointment-evaluation",
-            _ => "appointment-default"
-        };
+        currentView = view;
+        StateHasChanged();
     }
 
     // Métodos de navegación del calendario
     private void GoToPrev()
     {
-        currentDate = currentDate.AddDays(-7);
+        currentDate = currentView switch
+        {
+            "month" => currentDate.AddMonths(-1),
+            "week" => currentDate.AddDays(-7),
+            "day" => currentDate.AddDays(-1),
+            _ => currentDate.AddDays(-1)
+        };
         StateHasChanged();
     }
 
@@ -465,52 +531,13 @@
 
     private void GoToNext()
     {
-        currentDate = currentDate.AddDays(7);
+        currentDate = currentView switch
+        {
+            "month" => currentDate.AddMonths(1),
+            "week" => currentDate.AddDays(7),
+            "day" => currentDate.AddDays(1),
+            _ => currentDate.AddDays(1)
+        };
         StateHasChanged();
     }
-
-    // Método para cargar citas reales desde la base de datos (descomenta y adapta cuando necesites)
-    /*
-    private async Task LoadAppointmentsFromDatabase()
-    {
-        try
-        {
-            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-            var sql = @"
-                SELECT 
-                    c.Start,
-                    c.End,
-                    p.Nombre as PatientName,
-                    ps.Nombre as PsychologistName,
-                    c.AppointmentType,
-                    c.Status
-                FROM Citas c
-                INNER JOIN Pacientes p ON c.PacienteID = p.PacienteID
-                INNER JOIN Psicologos ps ON c.PsicologoID = ps.PsicologoID
-                WHERE c.Start >= @StartDate AND c.Start <= @EndDate";
-                
-            var startDate = DateTime.Today.AddMonths(-1);
-            var endDate = DateTime.Today.AddMonths(2);
-            
-            var dbAppointments = await conn.QueryAsync<AppointmentData>(sql, new { 
-                StartDate = startDate, 
-                EndDate = endDate 
-            });
-            
-            appointments = dbAppointments.ToList();
-            
-            // Recalcular estadísticas
-            citasHoy = appointments.Count(a => a.Start.Date == DateTime.Today);
-            citasPendientes = appointments.Count(a => a.Status == "Pending");
-            proximasCitas = appointments.Where(a => a.Start >= DateTime.Today)
-                                       .OrderBy(a => a.Start)
-                                       .ToList();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error cargando citas de la base de datos: {ex.Message}");
-            await LoadAppointments(); // Cargar datos de ejemplo como fallback
-        }
-    }
-    */
 }
