@@ -5,14 +5,14 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.Data.SqlClient
 @using matcha.Modelo
+@using Radzen
+@using Radzen.Blazor
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
- 
 <PageTitle>Dashboard Psicólogos</PageTitle>
 
 <div class="dashboard-container">
-
     <!-- Header -->
     <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
         <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
@@ -39,7 +39,7 @@
                         <span class="fas fa-calendar-day fa-2x me-3"></span>
                         <div>
                             <h6 class="mb-1">Citas hoy</h6>
-                            <h3 class="mb-0">5</h3>
+                            <h3 class="mb-0">@citasHoy</h3>
                         </div>
                     </div>
                 </div>
@@ -61,7 +61,7 @@
                         <span class="fas fa-exclamation-triangle fa-2x me-3"></span>
                         <div>
                             <h6 class="mb-1">Citas pendientes</h6>
-                            <h3 class="mb-0">2</h3>
+                            <h3 class="mb-0">@citasPendientes</h3>
                         </div>
                     </div>
                 </div>
@@ -84,75 +84,72 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>Juan Pérez</td>
-                            <td>Dra. López</td>
-                            <td>22/08/2025 10:00</td>
-                            <td>Individual</td>
-                        </tr>
-                        <tr>
-                            <td>María Sánchez</td>
-                            <td>Dr. Ruiz</td>
-                            <td>22/08/2025 11:00</td>
-                            <td>Grupo</td>
-                        </tr>
-                        <tr>
-                            <td>Carlos Fernández</td>
-                            <td>Dra. López</td>
-                            <td>22/08/2025 11:30</td>
-                            <td>Individual</td>
-                        </tr>
+                        @foreach (var cita in proximasCitas.Take(3))
+                        {
+                            <tr>
+                                <td>@cita.PatientName</td>
+                                <td>@cita.PsychologistName</td>
+                                <td>@cita.Start.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@cita.AppointmentType</td>
+                            </tr>
+                        }
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Calendario estilo Google Calendar -->
+        <!-- Calendario Radzen Scheduler -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <span class="fas fa-calendar me-2"></span>
-                    Calendario - @Capitalize(currentMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES")))
+                    Calendario de Citas
                 </h5>
                 <div>
-                    <button class="btn btn-sm btn-outline-secondary me-2" @onclick="PreviousMonth">
-                        <i class="fas fa-chevron-left"></i>
+                    <button class="btn btn-sm btn-outline-secondary me-2" @onclick="GoToPrev">
+                        <i class="fas fa-chevron-left"></i> Anterior
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="NextMonth">
-                        <i class="fas fa-chevron-right"></i>
+                    <button class="btn btn-sm btn-outline-secondary me-2" @onclick="GoToToday">
+                        Hoy
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="GoToNext">
+                        Siguiente <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
             <div class="card-body">
-                <div class="calendar-container">
-                    <div class="calendar-header">
-                        <div>Lun</div>
-                        <div>Mar</div>
-                        <div>Mié</div>
-                        <div>Jue</div>
-                        <div>Vie</div>
-                        <div>Sáb</div>
-                        <div>Dom</div>
-                    </div>
+                <RadzenScheduler @ref="scheduler" Data="@appointments" TItem="AppointmentData"
+                                 StartProperty="Start" EndProperty="End" TextProperty="Text"
+                                 StartTime="@DateTime.Today.AddHours(8)" EndTime="@DateTime.Today.AddHours(20)"
+                                 CurrentDate="@currentDate" SlotDuration="30" Height="600">
 
-                    <div class="calendar-grid">
-                        @foreach (var day in CalendarDays)
-                        {
-                            <div class="calendar-day @(day.HasValue ? "has-date" : "empty-day") @(IsToday(day) ? "today" : "") @(IsWeekend(day) ? "weekend" : "")">
-                                @if (day.HasValue)
-                                {
-                                    <span class="date">@day.Value.Day</span>
-                                    @* Aquí puedes agregar eventos/citas en el futuro *@
-                                }
+                    <ChildContent>
+                        <RadzenMonthView Text="Mes" />
+                        <RadzenWeekView Text="Semana" />
+                        <RadzenDayView Text="Día" />
+                    </ChildContent>
+
+                    <Template Context="data">
+                        @{
+                            var appointment = data as AppointmentData;
+                            <div class="scheduler-appointment @GetAppointmentClass(appointment)">
+                                <div class="appointment-content">
+                                    <strong>@appointment.Text</strong>
+                                    <div class="appointment-time">
+                                        @appointment.Start.ToString("HH:mm") - @appointment.End.ToString("HH:mm")
+                                    </div>
+                                    <div class="appointment-patient">
+                                        @appointment.PatientName
+                                    </div>
+                                </div>
                             </div>
                         }
-                    </div>
-                </div>
+                    </Template>
+                </RadzenScheduler>
             </div>
         </div>
     </main>
 </div>
-
 
 <style>
     /* Contenedor general */
@@ -219,154 +216,92 @@
         margin-top: 10px;
     }
 
-    .calendar-container {
-        font-family: 'Inter', 'Segoe UI', sans-serif;
-    }
-
-    /* Cabecera de días */
-    .calendar-header {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        text-align: center;
-        font-weight: 500;
-        font-size: 0.85rem;
-        margin-bottom: 10px;
-        color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    /* Grid */
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
-    }
-
-    /* Día */
-    .calendar-day {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        min-height: 120px;
-        padding: 8px;
-        display: flex;
-        flex-direction: column;
-        font-size: 0.85rem;
-        transition: all 0.2s ease-in-out;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        cursor: pointer;
-    }
-
-        .calendar-day:hover {
-            background: #f9fafb;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transform: translateY(-2px);
-        }
-
-        .calendar-day.empty-day {
-            background: #f8f9fa;
-            cursor: default;
-        }
-
-        .calendar-day.today {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-            .calendar-day.today:hover {
-                background: linear-gradient(135deg, #2563eb, #1d4ed8);
-                transform: translateY(-3px);
-            }
-
-        .calendar-day.weekend {
-            background: #f1f5f9;
-        }
-
-        .calendar-day.other-month {
-            background: #f8fafc;
-            opacity: 0.4;
-        }
-
-            .calendar-day.other-month .date {
-                color: #94a3b8;
-                font-weight: 400;
-            }
-
-        .calendar-day .date {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-
-        .calendar-day.today .date {
-            color: white;
-        }
-
-    /* Evento estilo "pill" */
-    .event {
-        margin-top: 4px;
-        padding: 4px 8px;
-        border-radius: 9999px;
+    /* Estilos para el Radzen Scheduler */
+    .scheduler-appointment {
+        border-radius: 6px;
+        padding: 4px 6px;
+        margin: 1px;
         font-size: 0.75rem;
-        font-weight: 500;
         color: white;
         cursor: pointer;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-        transition: transform 0.15s ease-in-out;
+        transition: all 0.2s ease;
+        border-left: 4px solid;
     }
 
-        .event:hover {
-            transform: scale(1.05);
-        }
-
-    /* Paleta moderna (colores planos tipo Tailwind) */
-    .bg-blue {
-        background: #3b82f6;
+    .scheduler-appointment:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
 
-    .bg-green {
-        background: #22c55e;
+    .appointment-content {
+        line-height: 1.2;
     }
 
-    .bg-red {
-        background: #ef4444;
+    .appointment-time {
+        font-size: 0.65rem;
+        opacity: 0.9;
+        margin-top: 2px;
     }
 
-    .bg-purple {
-        background: #a855f7;
+    .appointment-patient {
+        font-size: 0.7rem;
+        opacity: 0.8;
+        margin-top: 2px;
     }
 
-    .bg-orange {
-        background: #f97316;
+    /* Colores para diferentes tipos de citas */
+    .appointment-individual {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        border-left-color: #1e40af;
     }
 
-    .bg-teal {
-        background: #14b8a6;
+    .appointment-group {
+        background: linear-gradient(135deg, #10b981, #047857);
+        border-left-color: #065f46;
     }
 
-    .bg-pink {
-        background: #ec4899;
+    .appointment-evaluation {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        border-left-color: #b45309;
     }
 
-    .bg-indigo {
-        background: #6366f1;
+    .appointment-default {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        border-left-color: #374151;
+    }
+
+    /* Personalización del Radzen Scheduler */
+    .rz-scheduler {
+        border: none !important;
+    }
+
+    .rz-scheduler-header {
+        background-color: #f8fafc !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .rz-scheduler-month-view .rz-scheduler-date {
+        border-color: #e2e8f0 !important;
+    }
+
+    .rz-scheduler-today {
+        background-color: #dbeafe !important;
     }
 
     /* Responsivo */
     @@media (max-width: 768px) {
-        .calendar-day {
-            min-height: 80px;
-            padding: 4px;
+        .scheduler-appointment {
+            font-size: 0.7rem;
+            padding: 2px 4px;
         }
-
-        .calendar-header {
-            font-size: 0.75rem;
+        
+        .appointment-time,
+        .appointment-patient {
+            display: none;
+        }
+        
+        .rz-scheduler {
+            height: 400px !important;
         }
     }
 </style>
@@ -375,10 +310,27 @@
     private string saludo = "";
     private List<Usuario> usuarios = new();
     private int PacientesActivos => usuarios?.Count ?? 0;
-    // Corregido: inicializar como primer día del mes
-    private DateTime currentMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-    private List<DateTime?> CalendarDays = new();
     private string? userName;
+    
+    // Variables para el Radzen Scheduler
+    private RadzenScheduler<AppointmentData> scheduler;
+    private List<AppointmentData> appointments = new();
+    private List<AppointmentData> proximasCitas = new();
+    private int citasHoy = 0;
+    private int citasPendientes = 0;
+    private DateTime currentDate = DateTime.Today;
+
+    // Clase para las citas
+    public class AppointmentData
+    {
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public string PatientName { get; set; } = string.Empty;
+        public string PsychologistName { get; set; } = string.Empty;
+        public string AppointmentType { get; set; } = "Individual";
+        public string Status { get; set; } = "Confirmed";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -391,8 +343,8 @@
         // Cargar usuarios
         await CargarUsuarios();
 
-        // Construir calendario inicial
-        BuildCalendar();
+        // Cargar citas
+        await LoadAppointments();
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
@@ -409,65 +361,156 @@
         }
         catch (Exception ex)
         {
-            // Log del error si es necesario
             Console.WriteLine($"Error cargando usuarios: {ex.Message}");
             usuarios = new List<Usuario>();
         }
     }
 
-    private void BuildCalendar()
+    private async Task LoadAppointments()
     {
-        var days = new List<DateTime?>();
+        try
+        {
+            // Aquí puedes cargar las citas reales desde tu base de datos
+            // Por ahora, usamos datos de ejemplo
+            
+            appointments = new List<AppointmentData>
+            {
+                new AppointmentData 
+                { 
+                    Start = DateTime.Today.AddHours(10), 
+                    End = DateTime.Today.AddHours(11),
+                    Text = "Consulta Individual",
+                    PatientName = "Juan Pérez",
+                    PsychologistName = "Dra. López",
+                    AppointmentType = "Individual"
+                },
+                new AppointmentData 
+                { 
+                    Start = DateTime.Today.AddHours(11), 
+                    End = DateTime.Today.AddHours(12),
+                    Text = "Terapia de Grupo",
+                    PatientName = "María Sánchez",
+                    PsychologistName = "Dr. Ruiz",
+                    AppointmentType = "Grupo"
+                },
+                new AppointmentData 
+                { 
+                    Start = DateTime.Today.AddHours(15), 
+                    End = DateTime.Today.AddHours(16),
+                    Text = "Sesión Evaluación",
+                    PatientName = "Carlos Fernández",
+                    PsychologistName = "Dra. López",
+                    AppointmentType = "Evaluación"
+                },
+                new AppointmentData 
+                { 
+                    Start = DateTime.Today.AddDays(1).AddHours(9), 
+                    End = DateTime.Today.AddDays(1).AddHours(10),
+                    Text = "Seguimiento",
+                    PatientName = "Ana García",
+                    PsychologistName = "Dr. Ruiz",
+                    AppointmentType = "Individual"
+                },
+                new AppointmentData 
+                { 
+                    Start = DateTime.Today.AddDays(2).AddHours(14), 
+                    End = DateTime.Today.AddDays(2).AddHours(15),
+                    Text = "Consulta Urgente",
+                    PatientName = "Luis Martínez",
+                    PsychologistName = "Dra. López",
+                    AppointmentType = "Individual",
+                    Status = "Pending"
+                }
+            };
 
-        // Asegurar que trabajamos con el primer día del mes
-        var firstDay = new DateTime(currentMonth.Year, currentMonth.Month, 1);
-        int daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
-
-        // Calcular offset para que la semana comience en lunes
-        int firstDayOfWeek = (int)firstDay.DayOfWeek;
-        int firstDayOffset = (firstDayOfWeek == 0 ? 6 : firstDayOfWeek - 1);
-
-        // Espacios vacíos antes del primer día
-        for (int i = 0; i < firstDayOffset; i++)
-            days.Add(null);
-
-        // Días del mes
-        for (int i = 1; i <= daysInMonth; i++)
-            days.Add(new DateTime(currentMonth.Year, currentMonth.Month, i));
-
-        // Asignar la lista
-        CalendarDays = days;
+            // Calcular estadísticas
+            citasHoy = appointments.Count(a => a.Start.Date == DateTime.Today);
+            citasPendientes = appointments.Count(a => a.Status == "Pending");
+            proximasCitas = appointments.Where(a => a.Start >= DateTime.Today)
+                                       .OrderBy(a => a.Start)
+                                       .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando citas: {ex.Message}");
+            // En caso de error, inicializar listas vacías
+            appointments = new List<AppointmentData>();
+            proximasCitas = new List<AppointmentData>();
+        }
     }
 
-    private void NextMonth()
+    private string GetAppointmentClass(AppointmentData appointment)
     {
-        currentMonth = currentMonth.AddMonths(1);
-        BuildCalendar();
+        return appointment.AppointmentType switch
+        {
+            "Individual" => "appointment-individual",
+            "Grupo" => "appointment-group",
+            "Evaluación" => "appointment-evaluation",
+            _ => "appointment-default"
+        };
+    }
+
+    // Métodos de navegación del calendario
+    private void GoToPrev()
+    {
+        currentDate = currentDate.AddDays(-7);
         StateHasChanged();
     }
 
-    private void PreviousMonth()
+    private void GoToToday()
     {
-        currentMonth = currentMonth.AddMonths(-1);
-        BuildCalendar();
+        currentDate = DateTime.Today;
         StateHasChanged();
     }
 
-    private string Capitalize(string text)
+    private void GoToNext()
     {
-        if (string.IsNullOrEmpty(text)) return text;
-        return char.ToUpper(text[0]) + text.Substring(1);
+        currentDate = currentDate.AddDays(7);
+        StateHasChanged();
     }
 
-    // Métodos helper para el calendario
-    private bool IsToday(DateTime? date)
+    // Método para cargar citas reales desde la base de datos (descomenta y adapta cuando necesites)
+    /*
+    private async Task LoadAppointmentsFromDatabase()
     {
-        return date.HasValue && date.Value.Date == DateTime.Today;
+        try
+        {
+            using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
+            var sql = @"
+                SELECT 
+                    c.Start,
+                    c.End,
+                    p.Nombre as PatientName,
+                    ps.Nombre as PsychologistName,
+                    c.AppointmentType,
+                    c.Status
+                FROM Citas c
+                INNER JOIN Pacientes p ON c.PacienteID = p.PacienteID
+                INNER JOIN Psicologos ps ON c.PsicologoID = ps.PsicologoID
+                WHERE c.Start >= @StartDate AND c.Start <= @EndDate";
+                
+            var startDate = DateTime.Today.AddMonths(-1);
+            var endDate = DateTime.Today.AddMonths(2);
+            
+            var dbAppointments = await conn.QueryAsync<AppointmentData>(sql, new { 
+                StartDate = startDate, 
+                EndDate = endDate 
+            });
+            
+            appointments = dbAppointments.ToList();
+            
+            // Recalcular estadísticas
+            citasHoy = appointments.Count(a => a.Start.Date == DateTime.Today);
+            citasPendientes = appointments.Count(a => a.Status == "Pending");
+            proximasCitas = appointments.Where(a => a.Start >= DateTime.Today)
+                                       .OrderBy(a => a.Start)
+                                       .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando citas de la base de datos: {ex.Message}");
+            await LoadAppointments(); // Cargar datos de ejemplo como fallback
+        }
     }
-
-    private bool IsWeekend(DateTime? date)
-    {
-        if (!date.HasValue) return false;
-        return date.Value.DayOfWeek == DayOfWeek.Saturday || date.Value.DayOfWeek == DayOfWeek.Sunday;
-    }
+    */
 }
