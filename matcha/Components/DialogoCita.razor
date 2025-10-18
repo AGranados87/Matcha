@@ -1,0 +1,84 @@
+﻿@using Radzen
+@using Radzen.Blazor
+@using Matcha.Modelo
+@inject DialogService Dialogs
+
+@code {
+    [Parameter] public CitaUpsert Model { get; set; } = new();
+    [Parameter] public IEnumerable<object> Empleados { get; set; } = Enumerable.Empty<object>();
+    [Parameter] public IEnumerable<object> Pacientes { get; set; } = Enumerable.Empty<object>();
+    [Parameter] public bool PermitirEliminar { get; set; }
+    [Parameter] public Func<Task>? OnDelete { get; set; }
+}
+
+<div style="padding:1rem; max-width:520px;">
+    <EditForm Model="@Model">
+        <div class="mb-3">
+            <label class="form-label">Psicólogo</label>
+            <RadzenDropDown Data="@Empleados"
+                            TextProperty="Value"
+                            ValueProperty="Key"
+                            TValue="int"
+                            @bind-Value="Model.EmpleadoID"
+                            Style="width:100%" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Paciente</label>
+            <RadzenDropDown Data="@Pacientes"
+                            TextProperty="Value"
+                            ValueProperty="Key"
+                            TValue="int"
+                            @bind-Value="Model.PacienteID"
+                            AllowFiltering="true"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Style="width:100%" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Fecha y hora</label>
+            <div class="d-flex gap-2">
+                <RadzenDatePicker @bind-Value="Model.Inicio"
+                                  TValue="DateTime"
+                                  DateFormat="dd/MM/yyyy"
+                                  Style="width:55%" />
+                @* Si quieres separar hora, descomenta esto y guarda combinando fecha + hora en el padre
+                <RadzenTimePicker @bind-Value="Model.Inicio"
+                                  TValue="DateTime"
+                                  Style="width:40%" /> *@
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Motivo</label>
+            <RadzenTextBox @bind-Value="Model.Motivo" TValue="string" Style="width:100%" />
+        </div>
+
+        <div class="d-flex justify-content-between pt-2">
+            @if (PermitirEliminar && Model.CitaID.HasValue)
+            {
+                <RadzenButton Text="Eliminar"
+                              Icon="delete"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Click="@(async _ =>
+                                                        {
+                                  if (OnDelete != null)
+                                  {
+                                      await OnDelete.Invoke();
+                                  }
+                              })" />
+            }
+
+            <div class="ms-auto d-flex gap-2">
+                <RadzenButton Text="Cancelar"
+                              Icon="close"
+                              ButtonStyle="ButtonStyle.Light"
+                              Click="@(_ => Dialogs.Close(false))" />
+                <RadzenButton Text="Guardar"
+                              Icon="save"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Click="@(_ => Dialogs.Close(true))" />
+            </div>
+        </div>
+    </EditForm>
+</div>

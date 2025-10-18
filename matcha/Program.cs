@@ -17,11 +17,7 @@ builder.Services.AddScoped(provider =>
     return new SqlConnection(connectionString);
 });
 
-builder.Services.AddScoped(sp =>
-    new matcha.Components.Services.CitasController(
-        builder.Configuration.GetConnectionString("SqlConnection")
-));
-
+builder.Services.AddScoped<Matcha.Controllers.ICitasService, Matcha.Controllers.CitasController>();
 
 var app = builder.Build();
 
