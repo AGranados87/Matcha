@@ -106,52 +106,8 @@
                 </table>
             </div>
         </div>
-
-        <!-- Calendario estilo Google Calendar -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <span class="fas fa-calendar me-2"></span>
-                    Calendario - @Capitalize(currentMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES")))
-                </h5>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary me-2" @onclick="PreviousMonth">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="NextMonth">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="calendar-container">
-                    <div class="calendar-header">
-                        <div>Lun</div>
-                        <div>Mar</div>
-                        <div>Mié</div>
-                        <div>Jue</div>
-                        <div>Vie</div>
-                        <div>Sáb</div>
-                        <div>Dom</div>
-                    </div>
-
-                    <div class="calendar-grid">
-                        @foreach (var day in CalendarDays)
-                        {
-                            <div class="calendar-day">
-                                @if (day.HasValue)
-                                {
-                                    <span class="date">@day.Value.Day</span>
-                                }
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
 </div>
-
 
 <style>
     /* Contenedor general */
@@ -215,112 +171,7 @@
     }
 
     main {
-        margin-top: 10px; 
-    }
-
-    .calendar-container {
-        font-family: 'Inter', 'Segoe UI', sans-serif;
-    }
-
-    /* Cabecera de días */
-    .calendar-header {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        text-align: center;
-        font-weight: 500;
-        font-size: 0.85rem;
-        margin-bottom: 10px;
-        color: #6b7280; 
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    /* Grid */
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
-    }
-
-
-    /* Día */
-    .calendar-day {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        min-height: 120px;
-        padding: 8px;
-        display: flex;
-        flex-direction: column;
-        font-size: 0.85rem;
-        transition: all 0.2s ease-in-out;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-
-        .calendar-day:hover {
-            background: #f9fafb;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transform: translateY(-2px);
-        }
-
-        .calendar-day .date {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-
-    /* Evento estilo "pill" */
-    .event {
-        margin-top: 4px;
-        padding: 4px 8px;
-        border-radius: 9999px; 
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: white;
-        cursor: pointer;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-        transition: transform 0.15s ease-in-out;
-    }
-
-        .event:hover {
-            transform: scale(1.05);
-        }
-
-    /* Paleta moderna (colores planos tipo Tailwind) */
-    .bg-blue {
-        background: #3b82f6;
-    }
-
-    .bg-green {
-        background: #22c55e;
-    }
-
-    .bg-red {
-        background: #ef4444;
-    }
-
-    .bg-purple {
-        background: #a855f7;
-    }
-
-    .bg-orange {
-        background: #f97316;
-    }
-
-    .bg-teal {
-        background: #14b8a6;
-    }
-
-    .bg-pink {
-        background: #ec4899;
-    }
-
-    .bg-indigo {
-        background: #6366f1;
+        margin-top: 10px;
     }
 </style>
 
@@ -328,8 +179,6 @@
     private string saludo = "";
     private List<Usuario> usuarios = new();
     private int PacientesActivos => usuarios?.Count ?? 0;
-    private DateTime currentMonth = DateTime.Today;
-    private List<DateTime?> CalendarDays = new();
     private string? userName;
 
     protected override async Task OnInitializedAsync()
@@ -343,14 +192,9 @@
         // Cargar usuarios
         await CargarUsuarios();
 
-        // Construir calendario inicial
-        BuildCalendar();
-
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-          
             userName = user.Identity.Name;
-
         }
     }
 
@@ -359,45 +203,4 @@
         using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
         usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
     }
-
-    private void BuildCalendar()
-    {
-        var days = new List<DateTime?>();
-
-        int daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
-        int firstDayOfWeek = (int)new DateTime(currentMonth.Year, currentMonth.Month, 1).DayOfWeek;
-        int firstDayOffset = (firstDayOfWeek == 0 ? 6 : firstDayOfWeek - 1);
-
-        // Espacios vacíos antes del primer día
-        for (int i = 0; i < firstDayOffset; i++)
-            days.Add(null);
-
-        // Días del mes
-        for (int i = 1; i <= daysInMonth; i++)
-            days.Add(new DateTime(currentMonth.Year, currentMonth.Month, i));
-
-        // Asignar la lista para que Blazor detecte cambios
-        CalendarDays = days;
-    }
-
-    private void NextMonth()
-    {
-        currentMonth = currentMonth.AddMonths(1);
-        BuildCalendar();
-        StateHasChanged(); 
-    }
-
-    private void PreviousMonth()
-    {
-        currentMonth = currentMonth.AddMonths(-1);
-        BuildCalendar();
-        StateHasChanged();
-    }
-
-    private string Capitalize(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return text;
-        return char.ToUpper(text[0]) + text.Substring(1);
-    }
 }
-
