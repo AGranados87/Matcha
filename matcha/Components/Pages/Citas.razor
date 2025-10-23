@@ -1,0 +1,260 @@
+﻿@page "/citas"
+
+@using System.Data
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using Radzen
+@using Radzen.Blazor
+@using Matcha.Modelo
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@rendermode InteractiveServer
+
+
+@inject IConfiguration Config
+@inject Matcha.Controllers.ICitasService CitasSvc
+@inject NotificationService Toaster
+@inject DialogService Dialogs
+
+<PageTitle>Citas</PageTitle>
+
+<div class="container-form">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="m-0">
+            <span class="fas fa-calendar-alt me-2 text-primary"></span>
+            Agenda de Citas
+        </h3>
+
+        <div class="d-flex gap-2">
+            <RadzenDropDown Data="@Empleados"
+                            TextProperty="Value"
+                            ValueProperty="Key"
+                            TValue="int?"
+                            @bind-Value="@FiltroEmpleadoId"
+                            AllowClear="true"
+                            Placeholder="Todos los psicólogos"
+                            Style="width:260px" />
+
+            <RadzenButton Icon="event" Text="Nueva cita" Click="@(async _ => await AbrirDialogoNuevaAsync())" />
+            <RadzenButton Icon="today" Text="Hoy" Click="@(async _ => await IrAHoy())" ButtonStyle="ButtonStyle.Light" />
+            <RadzenButton Icon="refresh" Text="Recargar" Click="@(async _ => await RecargarAsync())" ButtonStyle="ButtonStyle.Light" />
+        </div>
+    </div>
+
+    <RadzenScheduler TItem="CitaSchedulerDto"
+                     Data="@CitasData"
+                     StartProperty="Inicio"
+                     EndProperty="Fin"
+                     TextProperty="Text"
+                     DescriptionProperty="Descripcion"
+                     AllDayProperty="AllDay"
+                     Date="@Date"
+                     LoadData="@OnLoadData"
+                     SlotSelect="@OnSlotSelect"
+                     AppointmentSelect="@OnAppointmentSelect"
+                     AppointmentMove="@OnAppointmentMove"
+                     Style="height: 78vh;">
+        <RadzenMonthView />
+        <RadzenWeekView />
+        <RadzenDayView />
+    </RadzenScheduler>
+</div>
+
+@code {
+    private record CB(int Key, string Value);
+
+    private List<CitaSchedulerDto> CitasData = new();
+    private List<CB> Empleados = new();
+    private List<CB> Pacientes = new();
+
+    private int? _filtroEmpleadoId;
+    private int? FiltroEmpleadoId
+    {
+        get => _filtroEmpleadoId;
+        set
+        {
+            if (_filtroEmpleadoId != value)
+            {
+                _filtroEmpleadoId = value;
+                _ = RecargarAsync();
+            }
+        }
+    }
+
+    private DateTime Date = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosAsync();
+        await RecargarAsync(); // carga inicial
+    }
+
+    private SqlConnection NuevaConexion() => new SqlConnection(Config.GetConnectionString("SqlConnection"));
+
+    private async Task CargarCombosAsync()
+    {
+        using var cn = NuevaConexion();
+
+        var empleados = await cn.QueryAsync<CB>(
+            @"SELECT EmpleadoID AS [Key], UserName AS [Value]
+              FROM dbo.Empleados WITH (NOLOCK)
+              WHERE Activo = 1
+              ORDER BY UserName");
+
+        var pacientes = await cn.QueryAsync<CB>(
+            @"SELECT PacienteID AS [Key], Nombre AS [Value]
+              FROM dbo.Usuarios WITH (NOLOCK)
+              ORDER BY Nombre");
+
+        Empleados = empleados.ToList();
+        Pacientes = pacientes.ToList();
+    }
+
+    // ---------- Carga data (evento del Scheduler) ----------
+    private async Task OnLoadData(SchedulerLoadDataEventArgs args)
+    {
+        // args.Start y args.End reflejan el rango real de la vista actual
+        CitasData = (await CitasSvc.GetAsync(args.Start, args.End, FiltroEmpleadoId)).ToList();
+        StateHasChanged();
+    }
+
+    // Recarga manual (botón o cambio de filtro) como fallback
+    private async Task RecargarAsync()
+    {
+        var baseDate = Date.Date;
+        var desde = new DateTime(baseDate.Year, baseDate.Month, 1).AddDays(-7);
+        var hasta = new DateTime(baseDate.Year, baseDate.Month, DateTime.DaysInMonth(baseDate.Year, baseDate.Month)).AddDays(7);
+
+        CitasData = (await CitasSvc.GetAsync(desde, hasta, FiltroEmpleadoId)).ToList();
+        StateHasChanged();
+    }
+
+    private async Task IrAHoy()
+    {
+        Date = DateTime.Today;   // mueve el scheduler a hoy
+        await RecargarAsync();
+    }
+
+    // ---------- Diálogo ----------
+    private async Task<bool> AbrirDialogoCitaAsync(CitaUpsert model, string titulo, bool permitirEliminar = false)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "Model", model },
+            { "Empleados", Empleados },
+            { "Pacientes", Pacientes },
+            { "PermitirEliminar", permitirEliminar },
+            { "OnDelete", (Func<Task>)(async () =>
+                {
+                    if (model.CitaID.HasValue)
+                    {
+                        await CitasSvc.DeleteAsync(model.CitaID.Value);
+                        Toaster.Notify(NotificationSeverity.Success, "Cita eliminada", "Hecho.");
+                        await RecargarAsync();
+                        Dialogs.Close(false);
+                    }
+                })
+            }
+        };
+
+        var result = await Dialogs.OpenAsync<DialogoCita>(titulo, parameters,
+            new DialogOptions { ShowClose = true, CloseDialogOnOverlayClick = false });
+
+        return result ?? false;
+    }
+
+    private async Task AbrirDialogoNuevaAsync()
+    {
+        var fechaBase = Date.Date.AddHours(10);
+        var empleadoId = FiltroEmpleadoId ?? Empleados.FirstOrDefault()?.Key ?? 0;
+        var pacienteId = Pacientes.FirstOrDefault()?.Key ?? 0;
+
+        if (empleadoId == 0 || pacienteId == 0)
+        {
+            Toaster.Notify(NotificationSeverity.Warning, "Faltan datos", "Necesitas 1 psicólogo y 1 paciente.");
+            return;
+        }
+
+        var model = new CitaUpsert
+        {
+            Inicio = fechaBase,
+            EmpleadoID = empleadoId,
+            PacienteID = pacienteId,
+            DuracionMin = 60,
+            Motivo = ""
+        };
+
+        var ok = await AbrirDialogoCitaAsync(model, "Nueva cita");
+        if (!ok) return;
+
+        await CitasSvc.CreateAsync(model);
+        Toaster.Notify(NotificationSeverity.Success, "Cita creada", $"{model.Motivo ?? "Cita"} — {model.Inicio:g}");
+        await RecargarAsync();
+    }
+
+    // ---------- Eventos Scheduler ----------
+    private async Task OnSlotSelect(SchedulerSlotSelectEventArgs args)
+    {
+        var inicio = args.Start;
+        var empleadoId = FiltroEmpleadoId ?? Empleados.FirstOrDefault()?.Key ?? 0;
+        var pacienteId = Pacientes.FirstOrDefault()?.Key ?? 0;
+
+        if (empleadoId == 0 || pacienteId == 0)
+        {
+            Toaster.Notify(NotificationSeverity.Warning, "Faltan datos", "Necesitas 1 psicólogo y 1 paciente.");
+            return;
+        }
+
+        var id = await CitasSvc.CreateAsync(new CitaUpsert
+        {
+            PacienteID = pacienteId,
+            EmpleadoID = empleadoId,
+            Inicio = inicio,
+            Motivo = "Cita"
+        });
+
+        Toaster.Notify(NotificationSeverity.Success, "Cita creada", $"Id {id} a las {inicio:t}");
+        await RecargarAsync();
+    }
+
+    private async Task OnAppointmentSelect(SchedulerAppointmentSelectEventArgs<CitaSchedulerDto> args)
+    {
+        var it = args.Data;
+        var model = new CitaUpsert
+        {
+            CitaID = it.CitaID,
+            PacienteID = it.PacienteID,
+            EmpleadoID = it.EmpleadoID,
+            Inicio = it.Inicio,
+            DuracionMin = (int)(it.Fin - it.Inicio).TotalMinutes,
+            Motivo = it.Descripcion ?? it.Text
+        };
+
+        if (await AbrirDialogoCitaAsync(model, "Editar cita", permitirEliminar: true))
+        {
+            await CitasSvc.UpdateAsync(it.CitaID, model);
+            Toaster.Notify(NotificationSeverity.Success, "Cita actualizada", "Cambios guardados.");
+            await RecargarAsync();
+        }
+    }
+
+    private async Task OnAppointmentMove(SchedulerAppointmentMoveEventArgs args)
+    {
+        var it = args.Appointment?.Data as CitaSchedulerDto;
+        if (it is null) return;
+
+        // Opción sencilla: desplazar por el delta
+        var nuevoInicio = it.Inicio + args.TimeSpan;
+
+        await CitasSvc.UpdateAsync(it.CitaID, new CitaUpsert
+        {
+            PacienteID = it.PacienteID,
+            EmpleadoID = it.EmpleadoID,
+            Inicio = nuevoInicio,
+            Motivo = it.Descripcion ?? it.Text
+        });
+
+        Toaster.Notify(NotificationSeverity.Info, "Cita movida", $"{it.Text}: {it.Inicio:t} → {nuevoInicio:t}");
+        await RecargarAsync();
+    }
+}

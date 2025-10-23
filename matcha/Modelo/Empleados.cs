@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace matcha.Modelo
 {
@@ -12,8 +11,8 @@ namespace matcha.Modelo
         public string PasswordHash { get; set; } = "";
         public DateTime FechaCreacion { get; set; }
         public bool Activo { get; set; }
-        public int? RolID { get; set; }   // FK
-        public string? RolNombre { get; set; } // Nombre del rol (JOIN con Roles)
+        public int? RolID { get; set; }  
+        public string? RolNombre { get; set; } 
     }
 
 }

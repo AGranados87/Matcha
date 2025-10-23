@@ -1,5 +1,6 @@
 using matcha.Components;
 using Microsoft.Data.SqlClient;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddControllers();
+builder.Services.AddRadzenComponents();
 
 builder.Services.AddScoped(provider =>
 {
@@ -14,6 +16,8 @@ builder.Services.AddScoped(provider =>
     var connectionString = config.GetConnectionString("SqlConnection");
     return new SqlConnection(connectionString);
 });
+
+builder.Services.AddScoped<Matcha.Controllers.ICitasService, Matcha.Controllers.CitasController>();
 
 var app = builder.Build();
 

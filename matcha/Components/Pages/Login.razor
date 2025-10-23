@@ -1,4 +1,6 @@
-﻿@page "/login"
+﻿@page "/"
+@page "/login"
+
 @using matcha.Components.Controllers
 @using matcha.Components.Layout
 @using Microsoft.AspNetCore.Identity
@@ -245,7 +247,7 @@
             ultimoIntentoFallido = null;
 
             // Redirigir al dashboard
-            Navigation.NavigateTo("/", forceLoad: true);
+            Navigation.NavigateTo("/dashboard", forceLoad: true);
         }
         catch (Exception ex)
         {
