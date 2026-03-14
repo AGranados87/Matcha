@@ -1,13 +1,15 @@
-﻿@page "/empleados"
+@page "/empleados"
 @rendermode InteractiveServer
 @inject IConfiguration Config
 @inject IJSRuntime JS
 
 @using Dapper
-@using matcha.Components.Controllers
+@using Matcha.Controllers
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient
 @using Microsoft.AspNetCore.Identity
+
+@inject EmpleadosController EmpleadosController
 
 <PageTitle>Listado de Empleados</PageTitle>
 
@@ -278,7 +280,6 @@ else
     private string filtroBusqueda = string.Empty;
     private bool mostrarModal = false;
 
-    private EmpleadosController empleadosController;
 
     private IEnumerable<Empleado> EmpleadosFiltrados =>
         empleados?
@@ -296,13 +297,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        empleadosController = new EmpleadosController(Config.GetConnectionString("SqlConnection"));
         await CargarRoles();
         await CargarEmpleados();
     }
 
-    private async Task CargarEmpleados() => empleados = await empleadosController.GetEmpleadosAsync();
-    private async Task CargarRoles() => roles = await empleadosController.GetRolesAsync();
+    private async Task CargarEmpleados() => empleados = await EmpleadosController.GetEmpleadosAsync();
+    private async Task CargarRoles() => roles = await EmpleadosController.GetRolesAsync();
 
     private void Editar(Empleado e)
     {
@@ -338,7 +338,7 @@ else
             return;
         }
 
-        await empleadosController.InsertarEmpleadoAsync(nuevoEmpleado, nuevoEmpleado.PasswordHash);
+        await EmpleadosController.InsertarEmpleadoAsync(nuevoEmpleado, nuevoEmpleado.PasswordHash);
         await CargarEmpleados();
         CerrarModal();
     }
@@ -353,7 +353,7 @@ else
             : empleadoEditando.PasswordHash;
 
         empleadoEditando.EmpleadoID = id;
-        await empleadosController.ActualizarEmpleadoAsync(empleadoEditando, nuevaPass);
+        await EmpleadosController.ActualizarEmpleadoAsync(empleadoEditando, nuevaPass);
         await CargarEmpleados();
         empleadoEditando = null;
     }
@@ -362,7 +362,7 @@ else
     {
         if (!await JS.InvokeAsync<bool>("confirm", "¿Seguro que quieres eliminar este empleado?")) return;
 
-        await empleadosController.EliminarEmpleadoAsync(id);
+        await EmpleadosController.EliminarEmpleadoAsync(id);
         await CargarEmpleados();
     }
 }

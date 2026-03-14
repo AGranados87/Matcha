@@ -1,12 +1,13 @@
-﻿@page "/"
-@inject IConfiguration Config
+@page "/dashboard"
 
 @using Dapper
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.Data.SqlClient
 @using matcha.Modelo
+@using Matcha.Controllers
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UsuariosController UsuariosController
 
 
 <PageTitle>Dashboard Psicólogos</PageTitle>
@@ -200,7 +201,6 @@
 
     private async Task CargarUsuarios()
     {
-        using var conn = new SqlConnection(Config.GetConnectionString("SqlConnection"));
-        usuarios = (await conn.QueryAsync<Usuario>("SELECT PacienteID, Nombre FROM Usuarios")).ToList();
+        usuarios = await UsuariosController.GetUsuariosAsync();
     }
 }

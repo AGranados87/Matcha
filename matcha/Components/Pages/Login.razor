@@ -1,12 +1,14 @@
-﻿@page "/"
+@page "/"
 @page "/login"
 
-@using matcha.Components.Controllers
+@using Matcha.Controllers
 @using matcha.Components.Layout
 @using Microsoft.AspNetCore.Identity
 @using matcha.Modelo
 @layout LoginLayout
 @rendermode InteractiveServer
+
+@inject EmpleadosController EmpleadosController
 
 @inject NavigationManager Navigation
 @inject IConfiguration Config
@@ -125,7 +127,6 @@
 
 @code {
     private LoginModel loginModel = new();
-    private EmpleadosController? empleadosController;
     private string errorLogin = "";
     private bool isLoading = false;
     private int intentosLogin = 0;
@@ -135,14 +136,6 @@
 
     protected override void OnInitialized()
     {
-        var connectionString = Config.GetConnectionString("SqlConnection");
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            errorLogin = "Error de configuración del sistema. Contacte al administrador.";
-            return;
-        }
-
-        empleadosController = new EmpleadosController(connectionString);
     }
 
     private void OnEmailInput(ChangeEventArgs e)
@@ -211,18 +204,13 @@
                 return;
             }
 
-            if (empleadosController == null)
-            {
-                errorLogin = "Error del sistema. Contacte al administrador.";
-                return;
-            }
 
             isLoading = true;
             StateHasChanged();
 
             await Task.Delay(500);
 
-            var empleado = await empleadosController.AutenticarAsync(loginModel.Email, loginModel.Password);
+            var empleado = await EmpleadosController.AutenticarAsync(loginModel.Email, loginModel.Password);
 
             if (empleado == null)
             {

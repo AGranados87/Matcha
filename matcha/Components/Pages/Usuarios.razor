@@ -1,13 +1,15 @@
-﻿@page "/usuarios"
+@page "/usuarios"
 @rendermode InteractiveServer
 @inject IConfiguration Config
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
 @using Dapper
-@using matcha.Components.Controllers
+@using Matcha.Controllers
 @using matcha.Modelo
 @using Microsoft.Data.SqlClient
+
+@inject UsuariosController UsuariosController
 
 <PageTitle>Listado de Usuarios</PageTitle>
 
@@ -292,7 +294,6 @@ else
     private string toastTitle = "";
     private string toastHeaderClass = "";
 
-    private UsuariosController usuariosController;
 
     private IEnumerable<Usuario> UsuariosFiltrados =>
         usuarios?
@@ -310,14 +311,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        usuariosController = new UsuariosController(Config.GetConnectionString("SqlConnection"));
         await CargarPsicologos();
         await CargarUsuarios();
     }
 
-    private async Task CargarUsuarios() => usuarios = await usuariosController.GetUsuariosAsync();
+    private async Task CargarUsuarios() => usuarios = await UsuariosController.GetUsuariosAsync();
 
-    private async Task CargarPsicologos() => psicologos = await usuariosController.GetPsicologosAsync();
+    private async Task CargarPsicologos() => psicologos = await UsuariosController.GetPsicologosAsync();
 
     private void Editar(Usuario u) => usuarioEditando = new Usuario
     {
@@ -362,7 +362,7 @@ else
         isLoading = true;
         try
         {
-            await usuariosController.InsertarUsuarioAsync(nuevoUsuario);
+            await UsuariosController.InsertarUsuarioAsync(nuevoUsuario);
             MostrarToast($"Usuario '{nuevoUsuario.Nombre}' insertado correctamente", "Éxito", "success");
             await CargarUsuarios();
             CerrarModal();
@@ -388,7 +388,7 @@ else
         usuarioEditando.PacienteID = pacienteId;
         try
         {
-            await usuariosController.ActualizarUsuarioAsync(usuarioEditando);
+            await UsuariosController.ActualizarUsuarioAsync(usuarioEditando);
             MostrarToast("Usuario actualizado correctamente", "Éxito", "success");
             await CargarUsuarios();
             usuarioEditando = null;
@@ -406,7 +406,7 @@ else
 
         try
         {
-            await usuariosController.EliminarUsuarioAsync(pacienteId);
+            await UsuariosController.EliminarUsuarioAsync(pacienteId);
             MostrarToast("Usuario eliminado correctamente", "Éxito", "success");
             await CargarUsuarios();
 

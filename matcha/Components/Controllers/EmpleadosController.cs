@@ -1,18 +1,19 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using matcha.Modelo;
 
-namespace matcha.Components.Controllers
+namespace Matcha.Controllers
 {
     public class EmpleadosController
     {
         private readonly string _connectionString;
         private readonly PasswordHasher<Empleado> _passwordHasher;
 
-        public EmpleadosController(string connectionString)
+        public EmpleadosController(IConfiguration config)
         {
-            _connectionString = connectionString;
+            _connectionString = config.GetConnectionString("SqlConnection") 
+                                ?? throw new InvalidOperationException("Connection string 'SqlConnection' not found.");
             _passwordHasher = new PasswordHasher<Empleado>();
         }
 

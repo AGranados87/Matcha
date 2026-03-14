@@ -1,6 +1,7 @@
 using matcha.Components;
 using Microsoft.Data.SqlClient;
 using Radzen;
+using Matcha.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,11 +14,14 @@ builder.Services.AddRadzenComponents();
 builder.Services.AddScoped(provider =>
 {
     var config = provider.GetRequiredService<IConfiguration>();
-    var connectionString = config.GetConnectionString("SqlConnection");
+    var connectionString = config.GetConnectionString("SqlConnection") 
+                           ?? throw new InvalidOperationException("Connection string 'SqlConnection' not found.");
     return new SqlConnection(connectionString);
 });
 
 builder.Services.AddScoped<Matcha.Controllers.ICitasService, Matcha.Controllers.CitasController>();
+builder.Services.AddScoped<UsuariosController>();
+builder.Services.AddScoped<EmpleadosController>();
 
 var app = builder.Build();
 

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace matcha.Modelo
 {
@@ -13,6 +13,6 @@ namespace matcha.Modelo
         [EmailAddress(ErrorMessage = "Formato de email inválido")]
         public string Email { get; set; } = string.Empty;
         public int? EmpleadoID { get; set; }   // FK al psicólogo
-        public string Psicologo{ get; set; }  // Nombre del psicólogo
+        public string Psicologo { get; set; } = string.Empty; // Nombre del psicólogo
     }
 }

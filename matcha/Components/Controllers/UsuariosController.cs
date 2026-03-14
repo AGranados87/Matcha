@@ -1,16 +1,17 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Data.SqlClient;
 using matcha.Modelo;
 
-namespace matcha.Components.Controllers
+namespace Matcha.Controllers
 {
     public class UsuariosController
     {
         private readonly string _connectionString;
 
-        public UsuariosController(string connectionString)
+        public UsuariosController(IConfiguration config)
         {
-            _connectionString = connectionString;
+            _connectionString = config.GetConnectionString("SqlConnection") 
+                                ?? throw new InvalidOperationException("Connection string 'SqlConnection' not found.");
         }
 
         public async Task<List<Usuario>> GetUsuariosAsync()
