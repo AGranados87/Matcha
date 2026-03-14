@@ -1,6 +1,7 @@
-using matcha.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Data.SqlClient;
 using Radzen;
+using matcha.Components;
 using Matcha.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddControllers();
 builder.Services.AddRadzenComponents();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredService<CustomAuthenticationStateProvider>());
+builder.Services.AddAuthorizationCore();
 
 builder.Services.AddScoped(provider =>
 {

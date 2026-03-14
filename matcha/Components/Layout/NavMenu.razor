@@ -1,4 +1,4 @@
-﻿<div class="top-row navbar">
+<div class="top-row navbar">
     <div style="width: 100%; display: flex; justify-content: center; align-items: center;">
         <img src="Images/logomatcha.png" alt="Logo Matcha" style="height:120px;" />
     </div>
@@ -26,11 +26,22 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                <span class="fas fa-building" aria-hidden="true"></span> Login
-            </NavLink>
-        </div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="logout">
+                        <span class="fas fa-sign-out-alt me-2" aria-hidden="true"></span> Logout
+                    </NavLink>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">
+                        <span class="fas fa-sign-in-alt me-2" aria-hidden="true"></span> Login
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="citas">

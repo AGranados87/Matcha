@@ -5,6 +5,7 @@
 @using Microsoft.Data.SqlClient
 @using matcha.Modelo
 @using Matcha.Controllers
+@using System.Security.Claims
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UsuariosController UsuariosController
@@ -17,7 +18,7 @@
     <!-- Header -->
     <header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
         <span class="fas fa-tachometer-alt fa-2x text-success me-3"></span>
-        <h1 class="m-0">@saludo, Fran</h1>
+        <h1 class="m-0">@saludo@(!string.IsNullOrEmpty(userName) ? $", {userName}" : "")</h1>
     </header>
 
     <main class="p-4">
@@ -195,7 +196,7 @@
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-            userName = user.Identity.Name;
+            userName = user.Identity.Name ?? user.FindFirst(ClaimTypes.Name)?.Value;
         }
     }
 

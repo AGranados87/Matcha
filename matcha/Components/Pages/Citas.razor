@@ -1,71 +1,124 @@
-﻿@page "/citas"
+@page "/citas"
 
 @using System.Data
 @using Dapper
 @using Microsoft.Data.SqlClient
 @using Radzen
 @using Radzen.Blazor
-@using Matcha.Modelo
+@using matcha.Modelo
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
 @rendermode InteractiveServer
 
 
+@inject AuthenticationStateProvider AuthStateProvider
 @inject IConfiguration Config
 @inject Matcha.Controllers.ICitasService CitasSvc
 @inject NotificationService Toaster
 @inject DialogService Dialogs
 
-<PageTitle>Citas</PageTitle>
 
-<div class="container-form">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-        <h3 class="m-0">
-            <span class="fas fa-calendar-alt me-2 text-primary"></span>
-            Agenda de Citas
-        </h3>
+<header class="d-flex align-items-center p-3 shadow-sm" id="main-header">
+    <span class="fas fa-calendar-alt fa-2x text-success me-3"></span>
+    <h1 class="m-0">Agenda de Citas</h1>
+</header>
 
-        <div class="d-flex gap-2">
-            <RadzenDropDown Data="@Empleados"
-                            TextProperty="Value"
-                            ValueProperty="Key"
-                            TValue="int?"
-                            @bind-Value="@FiltroEmpleadoId"
-                            AllowClear="true"
-                            Placeholder="Todos los psicólogos"
-                            Style="width:260px" />
+<div class="container" style="padding-top:60px; margin-bottom:10px;">
+    <!-- Filtros y Acciones -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between">
+            
+            <div class="d-flex align-items-center gap-3">
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label mb-0 fs-5">
+                                <span class="fas fa-filter text-success me-1"></span> Psicólogo
+                            </label>
+                            <RadzenDropDown Data="@Empleados"
+                                            TextProperty="Value"
+                                            ValueProperty="Key"
+                                            TValue="int?"
+                                            @bind-Value="@FiltroEmpleadoId"
+                                            AllowClear="true"
+                                            Placeholder="Todos los psicólogos"
+                                            Style="width:260px" />
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="p-2 border rounded bg-light" style="min-width:200px">
+                            <span class="fas fa-user-md me-2 text-success"></span>
+                            <strong>Mis Citas</strong>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
 
-            <RadzenButton Icon="event" Text="Nueva cita" Click="@(async _ => await AbrirDialogoNuevaAsync())" />
-            <RadzenButton Icon="today" Text="Hoy" Click="@(async _ => await IrAHoy())" ButtonStyle="ButtonStyle.Light" />
-            <RadzenButton Icon="refresh" Text="Recargar" Click="@(async _ => await RecargarAsync())" ButtonStyle="ButtonStyle.Light" />
+            <div class="d-flex gap-2">
+                <RadzenButton Icon="event" Text="Nueva cita" Click="@(async _ => await AbrirDialogoNuevaAsync())" ButtonStyle="ButtonStyle.Success" />
+                <RadzenButton Icon="today" Text="Hoy" Click="@(async _ => await IrAHoy())" ButtonStyle="ButtonStyle.Light" />
+                <RadzenButton Icon="refresh" Text="Recargar" Click="@(async _ => await RecargarAsync())" ButtonStyle="ButtonStyle.Light" />
+            </div>
         </div>
     </div>
 
-    <RadzenScheduler TItem="CitaSchedulerDto"
-                     Data="@CitasData"
-                     StartProperty="Inicio"
-                     EndProperty="Fin"
-                     TextProperty="Text"
-                     DescriptionProperty="Descripcion"
-                     AllDayProperty="AllDay"
-                     Date="@Date"
-                     LoadData="@OnLoadData"
-                     SlotSelect="@OnSlotSelect"
-                     AppointmentSelect="@OnAppointmentSelect"
-                     AppointmentMove="@OnAppointmentMove"
-                     Style="height: 78vh;">
-        <RadzenMonthView />
-        <RadzenWeekView />
-        <RadzenDayView />
-    </RadzenScheduler>
+    <!-- Contenedor del Calendario -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <RadzenScheduler TItem="CitaSchedulerDto"
+                             Data="@CitasData"
+                             StartProperty="Inicio"
+                             EndProperty="Fin"
+                             TextProperty="Text"
+                             DescriptionProperty="Descripcion"
+                             AllDayProperty="AllDay"
+                             Date="@Date"
+                             LoadData="@OnLoadData"
+                             SlotSelect="@OnSlotSelect"
+                             AppointmentSelect="@OnAppointmentSelect"
+                             AppointmentMove="@OnAppointmentMove"
+                             Style="height: 70vh; border-radius: 0;">
+                <RadzenMonthView />
+                <RadzenWeekView />
+                <RadzenDayView />
+            </RadzenScheduler>
+        </div>
+    </div>
 </div>
 
-@code {
-    private record CB(int Key, string Value);
+<style>
+    #main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: calc(100% - var(--sidebar-width, 250px));
+        margin-left: var(--sidebar-width, 250px);
+        z-index: 1020;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: margin-left 0.3s, width 0.3s;
+    }
 
+    #main-header h1 {
+        font-size: 2rem;
+        margin: 0;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    /* Estilo para los eventos en el calendario para que sean más verdes */
+    .rz-event-content {
+        background-color: #28a745 !important;
+        border-color: #218838 !important;
+    }
+</style>
+
+@code {
     private List<CitaSchedulerDto> CitasData = new();
-    private List<CB> Empleados = new();
-    private List<CB> Pacientes = new();
+    private List<ComboItem> Empleados = new();
+    private List<ComboItem> Pacientes = new();
 
     private int? _filtroEmpleadoId;
     private int? FiltroEmpleadoId
@@ -76,6 +129,7 @@
             if (_filtroEmpleadoId != value)
             {
                 _filtroEmpleadoId = value;
+                _ = CargarPacientesAsync(value);
                 _ = RecargarAsync();
             }
         }
@@ -85,7 +139,20 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int psychologistId))
+            {
+                _filtroEmpleadoId = psychologistId;
+            }
+        }
+
         await CargarCombosAsync();
+        await CargarPacientesAsync(_filtroEmpleadoId);
         await RecargarAsync(); // carga inicial
     }
 
@@ -95,19 +162,30 @@
     {
         using var cn = NuevaConexion();
 
-        var empleados = await cn.QueryAsync<CB>(
+        var empleados = await cn.QueryAsync<ComboItem>(
             @"SELECT EmpleadoID AS [Key], UserName AS [Value]
               FROM dbo.Empleados WITH (NOLOCK)
               WHERE Activo = 1
               ORDER BY UserName");
 
-        var pacientes = await cn.QueryAsync<CB>(
-            @"SELECT PacienteID AS [Key], Nombre AS [Value]
-              FROM dbo.Usuarios WITH (NOLOCK)
-              ORDER BY Nombre");
-
         Empleados = empleados.ToList();
+    }
+
+    private async Task<IEnumerable<ComboItem>> CargarPacientesAsync(int? empleadoId)
+    {
+        using var cn = NuevaConexion();
+
+        string sql = @"SELECT PacienteID AS [Key], Nombre AS [Value] FROM dbo.Usuarios WITH (NOLOCK)";
+        if (empleadoId.HasValue)
+        {
+            sql += " WHERE EmpleadoID = @empleadoId";
+        }
+        sql += " ORDER BY Nombre";
+
+        var pacientes = await cn.QueryAsync<ComboItem>(sql, new { empleadoId });
         Pacientes = pacientes.ToList();
+        StateHasChanged();
+        return Pacientes;
     }
 
     // ---------- Carga data (evento del Scheduler) ----------
@@ -144,6 +222,7 @@
             { "Empleados", Empleados },
             { "Pacientes", Pacientes },
             { "PermitirEliminar", permitirEliminar },
+            { "OnPsychologistChanged", (Func<int, Task<IEnumerable<ComboItem>>>)(async (id) => await CargarPacientesAsync(id)) },
             { "OnDelete", (Func<Task>)(async () =>
                 {
                     if (model.CitaID.HasValue)

@@ -12,6 +12,7 @@
 
 @inject NavigationManager Navigation
 @inject IConfiguration Config
+@inject CustomAuthenticationStateProvider AuthProvider
 
 <div class="login-card d-flex mx-auto my-auto"
      style="width: 800px; height: 550px; border-radius: 12px; overflow: hidden;
@@ -230,12 +231,15 @@
                 return;
             }
 
+            // Login exitoso - notificar al provider
+            AuthProvider.MarkUserAsAuthenticated(empleado);
+
             // Login exitoso - resetear intentos
             intentosLogin = 0;
             ultimoIntentoFallido = null;
 
             // Redirigir al dashboard
-            Navigation.NavigateTo("/dashboard", forceLoad: true);
+            Navigation.NavigateTo("/dashboard", forceLoad: false);
         }
         catch (Exception ex)
         {

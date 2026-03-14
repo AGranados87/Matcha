@@ -1,14 +1,23 @@
-﻿@using Radzen
+@using Radzen
 @using Radzen.Blazor
-@using Matcha.Modelo
+@using matcha.Modelo
 @inject DialogService Dialogs
 
 @code {
     [Parameter] public CitaUpsert Model { get; set; } = new();
-    [Parameter] public IEnumerable<object> Empleados { get; set; } = Enumerable.Empty<object>();
-    [Parameter] public IEnumerable<object> Pacientes { get; set; } = Enumerable.Empty<object>();
+    [Parameter] public IEnumerable<ComboItem> Empleados { get; set; } = Enumerable.Empty<ComboItem>();
+    [Parameter] public IEnumerable<ComboItem> Pacientes { get; set; } = Enumerable.Empty<ComboItem>();
     [Parameter] public bool PermitirEliminar { get; set; }
     [Parameter] public Func<Task>? OnDelete { get; set; }
+    [Parameter] public Func<int, Task<IEnumerable<ComboItem>>>? OnPsychologistChanged { get; set; }
+
+    async Task OnEmpleadoChange(object value)
+    {
+        if (value is int empId && OnPsychologistChanged != null)
+        {
+            Pacientes = await OnPsychologistChanged(empId);
+        }
+    }
 }
 
 <div style="padding:1rem; max-width:520px;">
@@ -20,6 +29,7 @@
                             ValueProperty="Key"
                             TValue="int"
                             @bind-Value="Model.EmpleadoID"
+                            Change="@OnEmpleadoChange"
                             Style="width:100%" />
         </div>
 

@@ -1,7 +1,7 @@
-﻿// Controllers/CitasController.cs
+// Controllers/CitasController.cs
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Matcha.Modelo;
+using matcha.Modelo;
 using System.Data;
 
 namespace Matcha.Controllers

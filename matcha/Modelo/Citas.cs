@@ -1,4 +1,4 @@
-﻿namespace Matcha.Modelo;
+namespace matcha.Modelo;
 
 public class CitaSchedulerDto
 {
